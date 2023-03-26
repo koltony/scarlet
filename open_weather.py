@@ -90,18 +90,18 @@ class OpenWeatherService(config.Component):
             del self.cache[x]
 
     def retrieve_last_from_cache(self) -> Optional[Weather]:
-        data = self.cache[self.cache.peekitem(last=True)[0]]
-        if data:
-            log.debug(f'retrieved last datapoint from cache: {data}')
+        if len(self.cache) >= 1:
+            data = self.cache[self.cache.peekitem(last=True)[0]]
+            log.debug(f'retrieved last Open Weather datapoint from cache: {data}')
             return data
         else:
-            log.error('no data found in cache')
+            log.warning('no Open Weather data found in cache')
             return None
 
     def get_weather_data(self) -> Optional[Weather]:
         data = self.raw_data
         if data:
-            log.info(f'retrieved weather data')
+            log.info(f'Retrieved Open weather data')
             weather = Weather(temperature=round(data['main']['temp'], 2),
                               wind=data['wind']['speed'],
                               clouds=data['clouds']['all'],
@@ -111,7 +111,7 @@ class OpenWeatherService(config.Component):
                               time=dt.datetime.fromtimestamp(data['dt']),
                               sunrise=dt.datetime.fromtimestamp(data['sys']['sunrise']),
                               sunset=dt.datetime.fromtimestamp(data['sys']['sunset']))
-            log.info(f"Online weather data: {weather}")
+            log.debug(f"Open weather data: {weather}")
             self._cache_data(weather)
         else:
             log.warning('no online weather data trying from cache')

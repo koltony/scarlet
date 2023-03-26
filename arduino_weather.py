@@ -31,7 +31,7 @@ class Weather:
     wind: float = 0
     light: float = 0
     rain: bool = False
-    time = dt.datetime.now()
+    time: dt.datetime = dt.datetime.now()
 
 
 class ArduinoWeather(config.Component):
@@ -56,7 +56,7 @@ class ArduinoWeather(config.Component):
 
     def clear_old_cache_data(self):
         limit = dt.datetime.now() - dt.timedelta(days=self.cache_max_age)
-        log.info(f'removing weather data before {limit}')
+        log.debug(f'removing weather data before {limit}')
         keys_for_removal = list()
         for name in self.cache.iterkeys():
             weather = self.cache[name]
@@ -67,11 +67,12 @@ class ArduinoWeather(config.Component):
             del self.cache[x]
 
     def retrieve_last_from_cache(self) -> Optional[Weather]:
-        if len(self.cache) > 1:
+        if len(self.cache) >= 1:
             data = self.cache[self.cache.peekitem(last=True)[0]]
-            log.debug(f'retrieved last datapoint from cache: {data}')
+            log.debug(f'retrieved last Arduino Weather datapoint from cache: {data}')
+            return data
         else:
-            log.warning('no data found in cache')
+            log.warning('No Arduino Weather data found in cache')
             return None
 
     def get_weather_data(self) -> Optional[Weather]:
@@ -83,7 +84,7 @@ class ArduinoWeather(config.Component):
                               light=float(light),
                               rain=bool(rain))
             self._cache_data(weather)
-            log.info(f"Got weather data from arduino: {weather}")
+            log.info(f"Got weather data from arduino")
             return weather
 
         log.debug("Loading arduino weather data from cache")

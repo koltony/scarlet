@@ -50,6 +50,7 @@ class IrrigationPrograms(config.Component):
 
 @dataclass
 class IrrigationData:
+    time = dt.datetime.now()
     scheduled_time: str
     irrigation_program: IrrigationProgram
     is_started = False
@@ -68,6 +69,15 @@ class IrrigationController(config.Component):
         with diskcache.Cache(directory=self.cache_directory) as cache:
             self.cache = cache
 
+    def _cache_data(self, data: IrrigationData):
+        self.clear_old_cache_data()
+        self.cache[f'{data.time}_irrigation_data'] = data
+        log.debug(f'weather data is cached: {data}')
+
+    def clear_cache(self):
+        self.cache.clear()
+        log.debug('cache cleared')
+
     def clear_old_cache_data(self):
         limit = dt.datetime.now() - dt.timedelta(days=self.cache_max_age)
         log.info(f'removing IrrigationData before {limit}')
@@ -81,9 +91,10 @@ class IrrigationController(config.Component):
             del self.cache[x]
 
     def retrieve_last_from_cache(self) -> Optional[IrrigationData]:
-        if len(self.cache) > 1:
+        if len(self.cache) >= 1:
             data = self.cache[self.cache.peekitem(last=True)[0]]
-            log.debug(f'retrieved last datapoint from cache: {data}')
+            log.debug(f'Retrieved last IrrigationData from cache')
+            return data
         else:
             log.warning('No IrrigationData found in cache')
             return None
@@ -97,6 +108,9 @@ class IrrigationController(config.Component):
         program = self.retrieve_last_from_cache()
         if program and program.is_started is False:
             now = dt.datetime.now()
+            log.debug("Checking irrigation start time")
+            log.debug(f"Scheduled hour: {program.scheduled_time.split(':')[0]} now: {now.hour} is {int(program.scheduled_time.split(':')[0]) == now.hour} \n"
+                      f"Scheduled minute: {program.scheduled_time.split(':')[1]} now: {now.minute} is {int(program.scheduled_time.split(':')[1]) == now.minute}")
             if int(program.scheduled_time.split(':')[0]) == now.hour and int(program.scheduled_time.split(':')[1]) == now.minute:
                 log.info("Starting irrigation program")
                 program.is_started = True
@@ -108,7 +122,7 @@ class IrrigationController(config.Component):
         df = pd.read_csv(filepath_or_buffer="resources/vapour.csv", header=0, index_col=0)
         open_weather_data = open_weather.service.get_hourly_average_weather_for_last_day()
         scores = list()
-        if open_weather_data and df:
+        if open_weather_data and not df.empty:
             for name, data in open_weather_data.items():
                 temperature = int(data.temperature)
                 if temperature < 6:
@@ -119,7 +133,9 @@ class IrrigationController(config.Component):
                 VPD = df.at[temperature, str(humidity)]
                 scores.append(VPD + (0.03 * data.wind))
             log.debug(f"Calculating average score based on {scores}")
-            return statistics.mean(scores)
+            score = statistics.mean(scores)
+            log.debug(f"Calculated score: {score}")
+            return score
         log.error("No available score")
         return None
 
@@ -129,45 +145,49 @@ class IrrigationController(config.Component):
         run_dates = OrderedDict({1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False})
         for name in self.cache.iterkeys():
             weather = self.cache[name]
-            time_since = weather.scheduled_time - today
+            time_since = weather.time.day - today.day
             if time_since <= 7:
                 run_dates[time_since+1] = True
         log.debug(f"Calculated run timeline: {run_dates}")
         for name, item in run_dates.items():
             if item is True:
+                log.debug(f"Irrigation system ran {name} day(s) ago")
                 return name
+        log.debug(f"Irrigation system ran 7 or more  day(s) ago")
         return 7
 
     def decide_irrigation(self):
-        log.debug("Making decision on next irrigation run")
+        log.info("Making decision on next irrigation run")
         self.clear_old_cache_data()
         arduino_data = arduino_weather.service.get_weather_data()
-        if arduino_data:
-            if arduino_data.rain == 1:
-                log.info("Its raining outside, turning off irrigation for today")
-                return
+#        if arduino_data:
+#           if arduino_data.rain == 1:
+#                log.info("Its raining outside, turning off irrigation for today")
+#                return
         score = self.calculate_score()
         if score is not None:
-            for name, program in self.Programs.scores_for_programs:
+            for name, program in self.Programs.scores_for_programs.items():
                 if program[0] < score < program[1]:
-                    log.info(f"Using program: {name} in the next run")
                     p = getattr(self.Programs, name)
                     last_run = self.get_last_run()
+                    log.debug(f"(p.every_x_day){p.every_x_day} <= {last_run} (last_run)")
                     if p.every_x_day <= last_run:
+                        log.info(f"Using program: {name} in the next run")
                         sunrise = open_weather.service.get_weather_data().sunrise
-                        self.cache[dt.datetime.now()] = IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p)
+                        self._cache_data(IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p))
                         return
+                    log.debug("Program not set due to conditions")
         else:
             log.warning("No weather score data available, using default program for next run")
-            self.cache[dt.datetime.now()] = IrrigationData(f"6:00", self.Programs.default_program)
+            self._cache_data(IrrigationData(f"6:00", self.Programs.default_program))
 
     @staticmethod
-    def irrigation_process(program: IrrigationProgram):
+    def irrigation_process(program: IrrigationData):
         log.info("Starting irrigation")
-        mqtt.service.publish('zone1', program.zone1)
-        mqtt.service.publish('zone2', program.zone2)
-        mqtt.service.publish('zone3', program.zone3)
-        mqtt.service.publish('zone_connected', program.zone_connected)
+        mqtt.service.publish('zone1', program.irrigation_program.zone1)
+        mqtt.service.publish('zone2', program.irrigation_program.zone2)
+        mqtt.service.publish('zone3', program.irrigation_program.zone3)
+        mqtt.service.publish('zone_connected', program.irrigation_program.zone_connected)
         mqtt.service.publish('active', 1)
 
 
@@ -248,6 +268,7 @@ class BlindsController(config.Component):
             return False
 
     def decide_opening_and_closing(self):
+        log.info("Deciding on opening and closing blinds")
         conditions = self.check_conditions()
         if conditions is True:
             mqtt.service.publish('mari', self.open_signal_mari)
