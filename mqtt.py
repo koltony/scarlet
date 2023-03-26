@@ -28,6 +28,7 @@ class MqttService(config.Component):
         self.ip_address = None
         self.port = None
         self.timeout = None
+        self.retry_amounts = None  # type: Optional[int]
 
         self.client = None
         self.is_connected = False
@@ -47,6 +48,22 @@ class MqttService(config.Component):
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_connect_fail = self.on_connect_fail
+        self.test_connection()
+
+    def test_connection(self):
+        time.sleep(1)
+        log.info("Starting MainController test")
+        for i in range(self.retry_amounts):
+            log.info(f"Test round {i + 1}")
+            try:
+                self.publish(topic='test', payload='mqtt tester message')
+                time.sleep(1)
+                if self.get_message(topic='test', clear_message=True) is not None:
+                    log.info("mqtt test passed")
+                    break
+            except Exception as e:
+                log.warning(f"{i + 1} test have failed with error")
+            log.warning(f"{i + 1} test have failed with response issue")
 
     def on_connect(self, client, userdata, flags, rc):
         log.info('Connection established with MQTT server')
@@ -67,6 +84,7 @@ class MqttService(config.Component):
             self.packages[msg.topic] = Package(topic=msg.topic, payload=msg.payload.decode())
 
     def get_message(self, topic: str, clear_message: bool = False) -> Any:
+        self.connection()
         log.debug(f'getting message for topic: {topic}')
         self.subscribe(topic)
         time.sleep(0.2)

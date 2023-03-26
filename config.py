@@ -67,6 +67,7 @@ class ConfigService:
                 component.initialize()
             else:
                 log.debug(f'Component {name} does not need to be initialied')
+        log.info("All components have been initialized")
 
 
 class Component:

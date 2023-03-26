@@ -2,9 +2,11 @@ import datetime
 import time
 import config
 import mqtt
-import weather
+import schedule
+import open_weather
+import arduino_weather
 import logging
-# import controller
+import controller
 import datetime as dt
 import log as log_
 
@@ -18,7 +20,11 @@ c.configure_components()
 c.initialize_components()
 
 
-#controller.controller.start_process()
-weather.service.get_weather_data()
-weather.service.get_average_weather(5)
+controller.controller.start_process()
+open_weather.service.get_weather_data()
+open_weather.service.get_average_weather(5)
+log.info(open_weather.service.get_hourly_average_weather_for_last_day())
+while True:
+    schedule.run_pending()
+
 
