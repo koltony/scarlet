@@ -21,10 +21,5 @@ c.initialize_components()
 
 
 controller.controller.start_process()
-open_weather.service.get_weather_data()
-open_weather.service.get_average_weather(5)
-log.info(open_weather.service.get_hourly_average_weather_for_last_day())
-while True:
-    schedule.run_pending()
 
 

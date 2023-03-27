@@ -25,6 +25,13 @@ class MainController(config.Component):
     def start_process(self):
         self.BlindsController.schedule_jobs()
         self.IrrigationController.schedule_jobs()
+        self.schedule_jobs()
+        while True:
+            schedule.run_pending()
+
+    @staticmethod
+    def schedule_jobs():
+        schedule.every().minute.do(mqtt.service.keep_connection_alive)
 
 
 class IrrigationProgram(config.Component):

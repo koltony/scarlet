@@ -1,4 +1,5 @@
 import logging
+import os
 import coloredlogs
 import sys
 from typing import Dict
@@ -16,14 +17,15 @@ class LogLevels(Enum):
 class Log:
 
     def __init__(self):
+        self.filename = 'logs.log'
         self.console_output_handler = logging.StreamHandler(stream=sys.stdout)
-        self.file_output_handler = logging.FileHandler(filename='logs.log')
+        self.file_output_handler = logging.FileHandler(filename=self.filename)
         self.set_console_format()
         self.set_logfile_format()
 
     def set_console_format(self):
         colored_formatter = coloredlogs.ColoredFormatter(
-            fmt='[ %(asctime)s ] |%(levelname)-5s| %(filename)-15s line: %(lineno)-3d %(message)s',
+            fmt='[ %(asctime)s ] |%(levelname)-5s| %(filename)-18s line: %(lineno)-3d %(message)s',
             level_styles=dict(
                 debug=dict(color='white'),
                 info=dict(color='blue'),
@@ -41,7 +43,7 @@ class Log:
         self.console_output_handler.setFormatter(fmt=colored_formatter)
 
     def set_logfile_format(self):
-        file_formatter = logging.Formatter(fmt='[ %(asctime)s ] |%(levelname)-5s| %(filename)-15s line: %(lineno)-3d %(message)s')
+        file_formatter = logging.Formatter(fmt='[ %(asctime)s ] |%(levelname)-5s| %(filename)-18s line: %(lineno)-3d %(message)s')
         self.file_output_handler.setFormatter(file_formatter)
 
     def logger(self, name):
@@ -65,6 +67,9 @@ class Log:
         for module_name, module in self.list_loggers().items():
             if modules_by_name.get(module_name):
                 self.list_loggers()[module_name].setLevel(modules_by_name[module_name].value)
+
+    def clear_log_file(self):
+        os.remove(self.filename)
 
 
 service = Log()

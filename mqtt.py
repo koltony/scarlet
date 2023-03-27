@@ -38,7 +38,7 @@ class MqttService(config.Component):
 
     def connection(self):
         if not self.is_connected:
-            self.client.connect(self.ip_address, self.port, self.timeout)
+            self.client.connect(self.ip_address, self.port, keepalive=self.timeout)
             self.client.loop_start()
 
     def initialize(self):
@@ -102,18 +102,23 @@ class MqttService(config.Component):
         self.connection()
         if isinstance(topics, str):
             if topics not in self.subscriptions:
+                log.debug(f"Subscribing to: {topics}")
                 self.client.subscribe(topics)
         else:
             for topic in topics:
                 if topics not in self.subscriptions:
+                    log.debug(f"Subscribing to: {topics}")
                     self.client.subscribe(topic)
 
-    def publish(self, topic: str, payload: Any, retain: bool = False):
+    def publish(self, topic: str, payload: Any, retain: bool = False, is_silent=False):
         self.subscribe(topics=topic)
         self.client.publish(topic=topic, payload=payload, retain=retain)
-        log.info(f"published message: {payload} for topic: {topic}")
+        if not is_silent:
+            log.info(f"published message: {payload} for topic: {topic}")
+
+    def keep_connection_alive(self):
+        self.publish(topic="keep_alive", payload="alive", is_silent=True)
 
 
 service = MqttService('MqttService')
-
 
