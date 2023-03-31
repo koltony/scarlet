@@ -2,6 +2,7 @@ import datetime
 import time
 import config
 import mqtt
+import cache
 import schedule
 import open_weather
 import arduino_weather

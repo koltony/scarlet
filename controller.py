@@ -9,6 +9,7 @@ import datetime as dt
 import open_weather
 import arduino_weather
 import config
+import cache
 from dataclasses import dataclass
 import mqtt
 import log as log_
@@ -56,8 +57,7 @@ class IrrigationPrograms(config.Component):
 
 
 @dataclass
-class IrrigationData:
-    time = dt.datetime.now()
+class IrrigationData(cache.CachedObject):
     scheduled_time: str
     irrigation_program: IrrigationProgram
     is_started = False
@@ -71,40 +71,7 @@ class IrrigationController(config.Component):
         self.cache = None  # type: Optional[diskcache.Cache]
         self.cache_max_age = None  # type: Optional[int]
         self.Programs = IrrigationPrograms("Programs")
-
-    def initialize(self):
-        with diskcache.Cache(directory=self.cache_directory) as cache:
-            self.cache = cache
-
-    def _cache_data(self, data: IrrigationData):
-        self.clear_old_cache_data()
-        self.cache[f'{data.time}_irrigation_data'] = data
-        log.debug(f'weather data is cached: {data}')
-
-    def clear_cache(self):
-        self.cache.clear()
-        log.debug('cache cleared')
-
-    def clear_old_cache_data(self):
-        limit = dt.datetime.now() - dt.timedelta(days=self.cache_max_age)
-        log.info(f'removing IrrigationData before {limit}')
-        keys_for_removal = list()
-        for name in self.cache.iterkeys():
-            data = self.cache[name]
-            if limit > data.time:
-                keys_for_removal.append(name)
-        log.debug(f'removed {len(keys_for_removal)} weather data points')
-        for x in keys_for_removal:
-            del self.cache[x]
-
-    def retrieve_last_from_cache(self) -> Optional[IrrigationData]:
-        if len(self.cache) >= 1:
-            data = self.cache[self.cache.peekitem(last=True)[0]]
-            log.debug(f'Retrieved last IrrigationData from cache')
-            return data
-        else:
-            log.warning('No IrrigationData found in cache')
-            return None
+        self.IrrigationControllerCache = cache.Cache("IrrigationControllerCache")  # type: cache.Cache
 
     def schedule_jobs(self):
         log.debug("Scheduling Irrigation jobs")
@@ -112,7 +79,7 @@ class IrrigationController(config.Component):
         schedule.every().minute.do(self.check_irrigation_start)
 
     def check_irrigation_start(self):
-        program = self.retrieve_last_from_cache()
+        program = self.IrrigationControllerCache.retrieve_last_from_cache()  # type: Optional[IrrigationData]
         if program and program.is_started is False:
             now = dt.datetime.now()
             log.debug("Checking irrigation start time")
@@ -165,7 +132,6 @@ class IrrigationController(config.Component):
 
     def decide_irrigation(self):
         log.info("Making decision on next irrigation run")
-        self.clear_old_cache_data()
         arduino_data = arduino_weather.service.get_weather_data()
 #        if arduino_data:
 #           if arduino_data.rain == 1:
@@ -181,12 +147,12 @@ class IrrigationController(config.Component):
                     if p.every_x_day <= last_run:
                         log.info(f"Using program: {name} in the next run")
                         sunrise = open_weather.service.get_weather_data().sunrise
-                        self._cache_data(IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p))
+                        self.IrrigationControllerCache.cache_data(IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p))
                         return
                     log.debug("Program not set due to conditions")
         else:
             log.warning("No weather score data available, using default program for next run")
-            self._cache_data(IrrigationData(f"6:00", self.Programs.default_program))
+            self.IrrigationControllerCache.cache_data(IrrigationData(f"6:00", self.Programs.default_program))
 
     @staticmethod
     def irrigation_process(program: IrrigationData):
