@@ -23,8 +23,8 @@ class MqttService(config.Component):
     def __init__(self, name):
         super().__init__(name)
         self.client_name = config.ConfigOption(required=True).string  # type: str
-        self.username = config.ConfigOption(required=True).string  # type: str
-        self.password = config.ConfigOption(required=True).string  # type: str
+        self.username = config.ConfigOption(required=True).secret  # type: str
+        self.password = config.ConfigOption(required=True).secret  # type: str
         self.ip_address = config.ConfigOption(required=True).string  # type: str
         self.port = config.ConfigOption(required=True).integer  # type: int
         self.timeout = config.ConfigOption(required=True).integer  # type: int

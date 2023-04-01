@@ -2,6 +2,7 @@ import datetime
 import time
 import config
 import mqtt
+import file_encryption
 import cache
 import schedule
 import open_weather
@@ -15,12 +16,7 @@ log = log_.service.logger('main')
 
 log_.service.set_log_level(log_.LogLevels.debug)
 
-c = config.ConfigService()
-c.load_config(path='/Users/Tony/PycharmProjects/scarlet/config.yaml')
-c.configure_components()
-c.initialize_components()
+config.service.start_process(config_file='config.yaml', encryption_key='testkey.key', secrets_file='esecrets.yaml')
 
-
-controller.controller.start_process()
 
 

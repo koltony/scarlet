@@ -2,8 +2,9 @@ import yaml
 from typing import Dict, Optional, Any
 from enum import Enum
 import re
-import log as log_
+import file_encryption
 import inspect
+import log as log_
 
 log = log_.service.logger('config')
 
@@ -14,6 +15,7 @@ class ConfigType(Enum):
     float = float
     list = list
     dictionary = dict
+    secret = str
 
 
 class ConfigOption:
@@ -43,6 +45,10 @@ class ConfigOption:
     def dictionary(self):
         return lambda config_name, config, component_name: self.process_dictionary(config_name, config, component_name)
 
+    @property
+    def secret(self):
+        return lambda config_name, config, component_name: self.process_secret(config_name, config, component_name)
+
     def process(self, config_type, config_name, config, component_name) -> Any:
         log.debug(f"passed value for {config_name}: {config}")
         if config is not None:
@@ -71,18 +77,34 @@ class ConfigOption:
     def process_dictionary(self, config_name, config, component_name) -> dict:
         return self.process(ConfigType.dictionary, config_name, config, component_name)
 
+    @staticmethod
+    def process_secret(config_name, config, component_name) -> str:
+        secrets = yaml.safe_load(service.secrets)
+        if config is not None:
+            for name, value in secrets.items():
+                if name == config:
+                    return value
+
+        raise ValueError(f"{component_name}.{config_name} is not configured")
+
 
 class ConfigService:
 
     def __init__(self):
         self.config_file = None
+        self.secrets = None
         self.config_classes = self._collect_config_classes()
+
+    def load_secrets(self, encryption_key: str, encrypted_file: str):
+        log.debug(f"loading secrets file")
+        self.secrets = file_encryption.Secrets.decrypt_file(encryption_key=encryption_key, encrypted_file=encrypted_file)
 
     def load_config(self, path: str):
         with open(path, "r") as stream:
             try:
                 self.config_file = yaml.safe_load(stream)
                 log.debug(f"loading config file from: {path}")
+                log.error(type(self.config_file))
             except yaml.YAMLError as exc:
                 log.error(exc)
 
@@ -145,6 +167,14 @@ class ConfigService:
             else:
                 log.debug(f'Component {name} does not need to be initialied')
         log.info("All components have been initialized")
+
+    def start_process(self, config_file: str, encryption_key: Optional[str], secrets_file: Optional[str] = None):
+        if secrets_file and encryption_key:
+            self.load_secrets(encryption_key=encryption_key, encrypted_file=secrets_file)
+
+        self.load_config(config_file)
+        self.configure_components()
+        self.initialize_components()
 
 
 class Component:
