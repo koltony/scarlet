@@ -46,7 +46,7 @@ class OpenWeatherService(config.Component):
 
     def __init__(self, name):
         super().__init__(name)
-        self.apikey = config.ConfigOption(required=True).string  # type: str
+        self.apikey = config.ConfigOption(required=True).secret  # type: str
         self.longitude = config.ConfigOption(required=True).float  # type: float
         self.latitude = config.ConfigOption(required=True).float  # type: float
         self.OpenWeatherCache = cache.Cache("OpenWeatherCache")  # type: cache.Cache
@@ -120,4 +120,4 @@ class OpenWeatherService(config.Component):
                 return None
 
 
-service = OpenWeatherService('WeatherService')
+service = OpenWeatherService('OpenWeatherService')
