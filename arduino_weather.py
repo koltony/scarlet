@@ -38,11 +38,11 @@ class Weather(cache.CachedObject):
 class ArduinoWeather(config.Component):
     def __init__(self, name):
         super().__init__(name)
-        self.anemometer_milli_volt_out_min = None  # type: Optional[int]
-        self.anemometer_milli_volt_out_max = None  # type: Optional[int]
-        self.anemometer_max_meter_per_sec = None  # type:Optional[float]
-        self.arduino_max_milli_input_voltage = None  # type:Optional[float]
-        self.arduino_input_resolution = None  # type: Optional[int]
+        self.anemometer_milli_volt_out_min = config.ConfigOption(required=True).integer  # type: int
+        self.anemometer_milli_volt_out_max = config.ConfigOption(required=True).integer  # type: int
+        self.anemometer_max_meter_per_sec = config.ConfigOption(required=True).float  # type: float
+        self.arduino_max_milli_input_voltage = config.ConfigOption(required=True).integer  # type: int
+        self.arduino_input_resolution = config.ConfigOption(required=True).integer  # type: int
         self.ArduinoWeatherCache = cache.Cache("ArduinoWeatherCache")  # type: cache.Cache
 
     def _value_to_wind_speed(self, value) -> float:
@@ -51,13 +51,14 @@ class ArduinoWeather(config.Component):
         delta_voltage = self.anemometer_milli_volt_out_max - self.anemometer_milli_volt_out_min
         meter_per_sec_per_voltage = delta_voltage / self.anemometer_max_meter_per_sec  # mps/mV
         value_voltage = value * milli_volt_per_value
+        log.debug(f"wind sensor voltage: {value_voltage} mV")
         if value_voltage < self.anemometer_milli_volt_out_min:
             log.debug(f"voltage: {value_voltage} is under threshold: {self.anemometer_milli_volt_out_min} returning 0")
             return 0.0
 
         meter_per_sec = (value_voltage - self.anemometer_milli_volt_out_min) / meter_per_sec_per_voltage
         km_per_hour = round(meter_per_sec * 3.6, 1)
-        log.debug(f"calculated wind speed: {km_per_hour}")
+        log.info(f"calculated wind speed: {km_per_hour}")
         return km_per_hour
 
     def get_weather_data(self) -> Optional[Weather]:

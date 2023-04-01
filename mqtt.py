@@ -22,13 +22,13 @@ class MqttService(config.Component):
 
     def __init__(self, name):
         super().__init__(name)
-        self.client_name = None
-        self.username = None
-        self.password = None
-        self.ip_address = None
-        self.port = None
-        self.timeout = None
-        self.retry_amounts = None  # type: Optional[int]
+        self.client_name = config.ConfigOption(required=True).string  # type: str
+        self.username = config.ConfigOption(required=True).string  # type: str
+        self.password = config.ConfigOption(required=True).string  # type: str
+        self.ip_address = config.ConfigOption(required=True).string  # type: str
+        self.port = config.ConfigOption(required=True).integer  # type: int
+        self.timeout = config.ConfigOption(required=True).integer  # type: int
+        self.retry_amounts = config.ConfigOption(required=True).integer  # type: int
 
         self.client = None
         self.is_connected = False

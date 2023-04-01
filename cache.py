@@ -25,8 +25,8 @@ class Cache(config.Component):
 
     def __init__(self, name):
         super().__init__(name)
-        self.cache_directory = None  # type: Optional[str]
-        self.cache_max_age = None  # type: Optional[int]
+        self.cache_directory = config.ConfigOption(required=True).string  # type: str
+        self.cache_max_age = config.ConfigOption(required=True).integer  # type: int
         self.cache = None  # type: Optional[diskcache.Cache]
 
     def __len__(self):
@@ -69,7 +69,7 @@ class Cache(config.Component):
         if len(self.cache) > 0:
             for name in self.cache.iterkeys():
                 data = self.cache[name]
-                if stop > data.time > start:
+                if stop > data.timestamp > start:
                     retrieved_data.append(data)
             log.debug(f"retrieved {len(retrieved_data)} datapoints from {self.name} for {start}:{stop}")
             return retrieved_data
@@ -80,7 +80,7 @@ class Cache(config.Component):
         now = dt.datetime.now()
         retrieved_data = {x+1: (now - dt.timedelta(hours=x), now - dt.timedelta(hours=x+1)) for x in range(0, 25)}
         data = defaultdict(list)
-        for name, times in retrieved_data:
+        for name, times in retrieved_data.items():
             period = self.retrieve_data_for_period(times[0], times[1])
             if period:
                 data[name] = period

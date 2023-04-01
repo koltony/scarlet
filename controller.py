@@ -38,22 +38,22 @@ class MainController(config.Component):
 class IrrigationProgram(config.Component):
     def __init__(self, name):
         super().__init__(name=name)
-        self.zone1 = None  # type: Optional[int]
-        self.zone2 = None  # type: Optional[int]
-        self.zone3 = None  # type: Optional[int]
-        self.zone_connected = None  # type: Optional[int]
-        self.every_x_day = None  # type: Optional[int]
+        self.zone1 = config.ConfigOption(required=True).integer  # type: int
+        self.zone2 = config.ConfigOption(required=True).integer  # type: int
+        self.zone3 = config.ConfigOption(required=True).integer  # type: int
+        self.zone_connected = config.ConfigOption(required=True).integer  # type: int
+        self.every_x_day = config.ConfigOption(required=True).integer  # type: int
 
 
 class IrrigationPrograms(config.Component):
     def __init__(self, name):
         super().__init__(name=name)
-        self.scores_for_programs = None  # type: Optional[Dict[str, List[float, float]]]
-        self.default_program = IrrigationProgram("DefaultProgram")
+        self.scores_for_programs = config.ConfigOption(required=True).dictionary  # type: Optional[Dict[str, List[float, float]]]
         self.Program_1 = IrrigationProgram("Program_1")
         self.Program_2 = IrrigationProgram("Program_2")
         self.Program_3 = IrrigationProgram("Program_3")
         self.Program_4 = IrrigationProgram("Program_4")
+        self.DefaultProgram = self.Program_2
 
 
 @dataclass
@@ -67,15 +67,12 @@ class IrrigationController(config.Component):
 
     def __init__(self, name):
         super().__init__(name=name)
-        self.cache_directory = None  # type: Optional[str]
-        self.cache = None  # type: Optional[diskcache.Cache]
-        self.cache_max_age = None  # type: Optional[int]
         self.Programs = IrrigationPrograms("Programs")
         self.IrrigationControllerCache = cache.Cache("IrrigationControllerCache")  # type: cache.Cache
 
     def schedule_jobs(self):
         log.debug("Scheduling Irrigation jobs")
-        schedule.every().day.at("04:00").do(self.decide_irrigation)
+        schedule.every().day.at("19:31").do(self.decide_irrigation)
         schedule.every().minute.do(self.check_irrigation_start)
 
     def check_irrigation_start(self):
@@ -117,8 +114,8 @@ class IrrigationController(config.Component):
         log.debug("Get last irrigation run")
         today = dt.datetime.now()
         run_dates = OrderedDict({1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False})
-        for name in self.cache.iterkeys():
-            weather = self.cache[name]
+        for name in self.IrrigationControllerCache.cache.iterkeys():
+            weather = self.IrrigationControllerCache.cache[name]
             time_since = weather.time.day - today.day
             if time_since <= 7:
                 run_dates[time_since+1] = True
@@ -152,7 +149,7 @@ class IrrigationController(config.Component):
                     log.debug("Program not set due to conditions")
         else:
             log.warning("No weather score data available, using default program for next run")
-            self.IrrigationControllerCache.cache_data(IrrigationData(f"6:00", self.Programs.default_program))
+            self.IrrigationControllerCache.cache_data(IrrigationData(f"6:00", self.Programs.DefaultProgram))
 
     @staticmethod
     def irrigation_process(program: IrrigationData):
@@ -168,24 +165,24 @@ class BlindsController(config.Component):
 
     def __init__(self, name):
         super().__init__(name=name)
-        self.stop_signal_mari = None
-        self.open_signal_mari = None
-        self.close_signal_mari = None
+        self.stop_signal_mari = config.ConfigOption(required=True).integer  # type: int
+        self.open_signal_mari = config.ConfigOption(required=True).integer  # type: int
+        self.close_signal_mari = config.ConfigOption(required=True).integer  # type: int
 
-        self.stop_signal_pisti = None
-        self.open_signal_pisti = None
-        self.close_signal_pisti = None
+        self.stop_signal_pisti = config.ConfigOption(required=True).integer  # type: int
+        self.open_signal_pisti = config.ConfigOption(required=True).integer  # type: int
+        self.close_signal_pisti = config.ConfigOption(required=True).integer  # type: int
 
-        self.absolute_wind_speed_limit = None
-        self.wind_speed_limit = None
-        self.light_limit = None
-        self.temperature_limit = None
-        self.first_opening_time = None
+        self.absolute_wind_speed_limit = config.ConfigOption(required=True).integer  # type: int
+        self.wind_speed_limit = config.ConfigOption(required=True).integer  # type: int
+        self.light_limit = config.ConfigOption(required=True).integer  # type: int
+        self.temperature_limit = config.ConfigOption(required=True).integer  # type: int
+        self.first_opening_time = config.ConfigOption(required=True).integer  # type: int
 
     def schedule_jobs(self):
         log.debug("scheduling blinds related jobs")
         schedule.every(15).minutes.do(self.decide_opening_and_closing)
-        schedule.every().minute.do(self.emergency_close_test)
+        schedule.every(25).seconds.do(self.emergency_close_test)
         schedule.every(10).minutes.do(self.checkin_to_eclipse_arduino)
 
     @staticmethod
