@@ -25,7 +25,7 @@ class Log:
 
     def set_console_format(self):
         colored_formatter = coloredlogs.ColoredFormatter(
-            fmt='[ %(asctime)s ] |%(levelname)-5s| %(filename)-18s line: %(lineno)-3d %(message)s',
+            fmt='[ %(asctime)s ] |%(levelname)-7s| %(filename)-18s line: %(lineno)-3d %(message)s',
             level_styles=dict(
                 debug=dict(color='white'),
                 info=dict(color='blue'),

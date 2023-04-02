@@ -78,7 +78,7 @@ class ConfigOption:
         return self.process(ConfigType.dictionary, config_name, config, component_name)
 
     @staticmethod
-    def process_secret(config_name, config, component_name) -> str:
+    def process_secret(config_name, config, component_name):
         secrets = yaml.safe_load(service.secrets)
         if config is not None:
             for name, value in secrets.items():
@@ -104,7 +104,6 @@ class ConfigService:
             try:
                 self.config_file = yaml.safe_load(stream)
                 log.debug(f"loading config file from: {path}")
-                log.error(type(self.config_file))
             except yaml.YAMLError as exc:
                 log.error(exc)
 
