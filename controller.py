@@ -72,7 +72,7 @@ class IrrigationController(config.Component):
 
     def schedule_jobs(self):
         log.debug("Scheduling Irrigation jobs")
-        schedule.every().day.at("19:31").do(self.decide_irrigation)
+        schedule.every().day.at("04:00").do(self.decide_irrigation)
         schedule.every().minute.do(self.check_irrigation_start)
 
     def check_irrigation_start(self):

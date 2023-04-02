@@ -79,6 +79,7 @@ class ConfigOption:
 
     @staticmethod
     def process_secret(config_name, config, component_name):
+        log.debug(f"configure secret value for {config_name}: {config}")
         secrets = yaml.safe_load(service.secrets)
         if config is not None:
             for name, value in secrets.items():
@@ -126,7 +127,7 @@ class ConfigService:
 
     @staticmethod
     def _set_configure_defaults_for_component(component, not_configured_attributes: list):
-        log.debug(f"trying defaults for {component.name} attributes: {not_configured_attributes} ")
+        log.info(f"trying defaults for {component.name} attributes: {not_configured_attributes} ")
         for config_name in not_configured_attributes:
             setattr(component, config_name, getattr(component, config_name)(config_name, None, component.name))
 
@@ -138,7 +139,7 @@ class ConfigService:
                 if config_name in Component.component_classes_by_name.keys():
                     self.configure_component(Component.component_classes_by_name[config_name], config)
                 elif config_name in configureables:
-                    log.debug(f'configuring {component.name}.{config_name}')
+                    log.info(f'configuring {component.name}.{config_name}')
                     setattr(component, config_name, getattr(component, config_name)(config_name, config, component.name))
                     configureables.remove(config_name)
                 else:
@@ -150,12 +151,12 @@ class ConfigService:
 
     def configure_components(self):
         for key, config in self.config_file.items():
-            log.debug(f'Configuring component: {key}')
+            log.info(f'configuring component: {key}')
             component = Component.component_classes_by_name.get(key)
             if component:
                 self.configure_component(component, config)
             else:
-                ValueError(f'Component: {key} does not exist')
+                ValueError(f'component: {key} does not exist')
 
     @staticmethod
     def initialize_components():
