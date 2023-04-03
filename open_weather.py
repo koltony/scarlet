@@ -30,16 +30,37 @@ class AverageWeather:
     pressure: float
 
 
-@dataclass
 class Weather(cache.CachedObject):
-    temperature: float
-    wind: float
-    clouds: float
-    pressure: float
-    humidity: float
-    timezone: int
-    sunrise: dt.datetime
-    sunset: dt.datetime
+    def __init__(
+        self,
+        temperature: float,
+        wind: float,
+        clouds: float,
+        pressure: float,
+        humidity: float,
+        timezone: int,
+        sunrise: dt.datetime,
+        sunset: dt.datetime
+         ):
+        super().__init__()
+        self.temperature = temperature
+        self.wind = wind
+        self.clouds = clouds
+        self.pressure = pressure
+        self.humidity = humidity
+        self.timezone = timezone
+        self.sunrise = sunrise
+        self.sunset = sunset
+
+    def __repr__(self):
+        return f"Weather(temperature={self.temperature}," \
+               f" wind={self.wind}," \
+               f" clouds={self.clouds}," \
+               f" pressure={self.pressure}" \
+               f" humidity={self.humidity}" \
+               f" timezone={self.timezone}" \
+               f" sunrise={self.sunrise}" \
+               f" sunset={self.sunset})"
 
 
 class OpenWeatherService(config.Component):
@@ -54,7 +75,8 @@ class OpenWeatherService(config.Component):
     @property
     def raw_data(self):
         try:
-            raw = requests.get(f'https://api.openweathermap.org/data/2.5/weather?lat={self.latitude}&lon={self.longitude}&appid={self.apikey}&units=metric').json()
+            raw = requests.get(
+                f'https://api.openweathermap.org/data/2.5/weather?lat={self.latitude}&lon={self.longitude}&appid={self.apikey}&units=metric').json()
             log.info('weather request was successful')
             log.debug(f"raw_data = {raw}")
             return raw
@@ -98,7 +120,7 @@ class OpenWeatherService(config.Component):
                 clouds=statistics.mean([w.clouds for w in weathers]),
                 humidity=statistics.mean([w.humidity for w in weathers]),
                 pressure=statistics.mean([w.pressure for w in weathers]))
-            log.debug(f"Average weather from arduino for the past {days} days: {average}")
+            log.info(f"Average weather from arduino for the past {days} days: {average}")
             return average
         return None
 

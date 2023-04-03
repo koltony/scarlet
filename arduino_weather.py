@@ -27,12 +27,15 @@ class AverageWeather:
     light: float
 
 
-@dataclass
 class Weather(cache.CachedObject):
-    wind: float = 0
-    light: float = 0
-    rain: bool = False
-    time: dt.datetime = dt.datetime.now()
+    def __init__(self, wind: float = 0, light: float = 0, rain: bool = False):
+        super().__init__()
+        self.wind = wind
+        self.light = light
+        self.rain = rain
+
+    def __repr__(self):
+        return f"Weather(wind={self.wind}, light={self.light}, rain={self.rain})"
 
 
 class ArduinoWeather(config.Component):
@@ -91,7 +94,7 @@ class ArduinoWeather(config.Component):
                 span_type=SpanType.minute,
                 light=statistics.mean([w.light for w in weathers if w is not None]),
                 wind=statistics.mean([w.wind for w in weathers if w is not None]))
-            log.debug(f"Average weather from arduino for the past {minutes} minutes: {average}")
+            log.info(f"Average weather from arduino for the past {minutes} minutes: {average}")
             return average
         return None
 

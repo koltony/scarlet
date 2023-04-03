@@ -1,7 +1,6 @@
 import diskcache
 import time
 from collections import defaultdict
-from dataclasses import dataclass
 import datetime as dt
 import diskcache
 from typing import Optional, Dict, List
@@ -13,11 +12,10 @@ import log as log_
 log = log_.service.logger('cache')
 
 
-@dataclass
 class CachedObject:
-    timestamp = dt.datetime.now()
 
-    def __post_init__(self):
+    def __init__(self):
+        self.timestamp = dt.datetime.now()
         self.name = self.__class__.__name__
 
 
@@ -65,7 +63,6 @@ class Cache(config.Component):
 
         if stop is None:
             stop = dt.datetime.now()
-
         if len(self.cache) > 0:
             for name in self.cache.iterkeys():
                 data = self.cache[name]
@@ -81,7 +78,7 @@ class Cache(config.Component):
         retrieved_data = {x+1: (now - dt.timedelta(hours=x), now - dt.timedelta(hours=x+1)) for x in range(0, 25)}
         data = defaultdict(list)
         for name, times in retrieved_data.items():
-            period = self.retrieve_data_for_period(times[0], times[1])
+            period = self.retrieve_data_for_period(times[1], times[0])
             if period:
                 data[name] = period
         if data:
