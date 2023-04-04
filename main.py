@@ -20,4 +20,3 @@ config.service.start_process(config_file='config.yaml', encryption_key='testkey.
 controller.controller.start_process()
 
 
-

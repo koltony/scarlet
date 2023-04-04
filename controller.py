@@ -1,4 +1,5 @@
 import statistics
+import time
 
 import schedule
 import diskcache
@@ -8,6 +9,7 @@ from typing import Optional, Dict, List
 import datetime as dt
 import open_weather
 import arduino_weather
+import google_database
 import config
 import cache
 from dataclasses import dataclass
@@ -22,17 +24,46 @@ class MainController(config.Component):
         super().__init__(name=name)
         self.IrrigationController = IrrigationController('IrrigationController')
         self.BlindsController = BlindsController('BlindsController')
+        self.DatabaseController = DatabaseController('DatabaseController')
 
     def start_process(self):
         self.BlindsController.schedule_jobs()
         self.IrrigationController.schedule_jobs()
+        self.DatabaseController.schedule_jobs()
         self.schedule_jobs()
         while True:
             schedule.run_pending()
+            time.sleep(0.01)
 
     @staticmethod
     def schedule_jobs():
         schedule.every().minute.do(mqtt.service.keep_connection_alive)
+
+
+class DatabaseController(config.Component):
+    def __init__(self, name):
+        super().__init__(name=name)
+
+    @staticmethod
+    def initialize():
+        google_database.service.listen_to(reference='/settings')
+
+    def schedule_jobs(self):
+        schedule.every(15).minutes.do(self.post_average_weather_data)
+
+    @staticmethod
+    def post_average_weather_data():
+        o_weather = open_weather.service.get_average_weather(timedelta=dt.timedelta(hours=1))
+        a_weather = arduino_weather.service.get_average_weather(timedelta=dt.timedelta(minutes=15))
+
+        if o_weather and a_weather:
+            data = {'time': dt.datetime.now().strftime("%H:%M:%S"),
+                    'temperature': o_weather.temperature,
+                    'wind': a_weather.wind,
+                    'light': a_weather.light}
+
+            log.info("Posting average weather data to Database")
+            google_database.service.set_data(data=data, reference='/weather')
 
 
 class IrrigationProgram(config.Component):
@@ -219,7 +250,7 @@ class BlindsController(config.Component):
         open_weather_data = open_weather.service.get_weather_data()
         arduino_weather.service.get_weather_data()
         if self.first_opening_time < dt.datetime.now().hour < 21:
-            arduino_weather_data = arduino_weather.service.get_average_weather(30)
+            arduino_weather_data = arduino_weather.service.get_average_weather(dt.timedelta(minutes=30))
             if open_weather_data and arduino_weather_data:
                 log.info("Checking conditions based on arduino and open weather data")
                 if self.check_arduino_weather_conditions(arduino_weather_data) and self.check_open_weather_conditions(open_weather_data):

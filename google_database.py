@@ -23,16 +23,26 @@ class FirebaseRealtimeDatabase(config.Component):
         self.listened_data[obj.path] = obj
 
     def listen_to(self, reference: str = '/'):
-        db.reference(reference).listen(self._on_message)
+        try:
+            db.reference(reference).listen(self._on_message)
+        except Exception as e:
+            log.error(e)
 
     @staticmethod
     def set_data(data: dict, reference: str = '/'):
         log.debug(f"Set data for: {reference}")
-        db.reference(reference).set(data)
+        try:
+            db.reference(reference).set(data)
+        except Exception as e:
+            log.error(e)
 
     @staticmethod
     def get_data(reference: str = '/', etag: bool = False):
-        return db.reference(reference).get(etag=etag)
+        try:
+            return db.reference(reference).get(etag=etag)
+        except Exception as e:
+            log.error(e)
+            return None
 
 
 service = FirebaseRealtimeDatabase('FirebaseRealtimeDatabase')

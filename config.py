@@ -133,13 +133,13 @@ class ConfigService:
 
     def configure_component(self, component, config):
         configureables = self._get_configureables_for_component(component)
-        log.debug(f"configurable attributes of {component.name}: {configureables}")
+        log.info(f"configurable attributes of {component.name}: {configureables}")
         for config_name, config in config.items():
             if hasattr(component, config_name):
                 if config_name in Component.component_classes_by_name.keys():
                     self.configure_component(Component.component_classes_by_name[config_name], config)
                 elif config_name in configureables:
-                    log.info(f'configuring {component.name}.{config_name}')
+                    log.debug(f'configuring {component.name}.{config_name}')
                     setattr(component, config_name, getattr(component, config_name)(config_name, config, component.name))
                     configureables.remove(config_name)
                 else:

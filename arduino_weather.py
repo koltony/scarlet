@@ -13,16 +13,9 @@ import log as log_
 log = log_.service.logger('ardu_weather')
 
 
-class SpanType(Enum):
-    day = auto()
-    hour = auto()
-    minute = auto()
-
-
 @dataclass
 class AverageWeather:
-    span: int
-    span_type: SpanType
+    span: dt.timedelta
     wind: float
     light: float
 
@@ -84,33 +77,33 @@ class ArduinoWeather(config.Component):
         log.warning("No available weather data from arduino")
         return None
 
-    def get_average_weather(self, minutes: int) -> Optional[AverageWeather]:
+    def get_average_weather(self, timedelta: dt.timedelta) -> Optional[AverageWeather]:
         log.debug(f'calculating average weather from {len(self.ArduinoWeatherCache.cache)} datapoints')
         weathers = self.ArduinoWeatherCache.retrieve_data_for_period(
-            dt.datetime.now() - dt.timedelta(minutes=minutes))  # type: Optional[List[Weather]]
+            dt.datetime.now() - timedelta) # type: Optional[List[Weather]]
         if weathers:
             average = AverageWeather(
-                span=minutes,
-                span_type=SpanType.minute,
+                span=timedelta,
                 light=statistics.mean([w.light for w in weathers if w is not None]),
                 wind=statistics.mean([w.wind for w in weathers if w is not None]))
-            log.info(f"Average weather from arduino for the past {minutes} minutes: {average}")
+            log.info(f"Average weather from arduino for the past {timedelta}")
             return average
         return None
 
     def get_hourly_average_weather_for_last_day(self) -> Optional[Dict[int, AverageWeather]]:
         if len(self.ArduinoWeatherCache.cache) > 0:
             weathers = self.ArduinoWeatherCache.retrieve_hourly_data_for_day()  # type: Optional[Dict[int, List[Weather]]]
-            averages_for_hour = dict()
+            averages_by_hour = dict()
             if weathers:
-                log.debug(f'calculating hourly average weather')
+                log.info(f'calculating hourly average weather')
                 for name, data in weathers.items():
-                    averages_for_hour[name] = AverageWeather(
-                        span=1,
-                        span_type=SpanType.hour,
+                    averages_by_hour[name] = AverageWeather(
+                        span=dt.timedelta(hours=1),
                         light=statistics.mean([w.light for w in data if w is not None]),
                         wind=statistics.mean([w.wind for w in data if w is not None]))
-                return None
+                log.info(f"Averages: {averages_by_hour}")
+                return averages_by_hour
+            return None
 
 
 service = ArduinoWeather("ArduinoWeatherService")

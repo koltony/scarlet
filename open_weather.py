@@ -13,16 +13,9 @@ import statistics
 log = log_.service.logger('open_weather')
 
 
-class SpanType(Enum):
-    day = auto()
-    hour = auto()
-    minute = auto()
-
-
 @dataclass
 class AverageWeather:
-    span: int
-    span_type: SpanType
+    span: dt.timedelta
     temperature: float
     wind: float
     clouds: float
@@ -96,7 +89,7 @@ class OpenWeatherService(config.Component):
                               timezone=data['timezone'],
                               sunrise=dt.datetime.fromtimestamp(data['sys']['sunrise']),
                               sunset=dt.datetime.fromtimestamp(data['sys']['sunset']))
-            log.debug(f"Open weather data: {weather}")
+            log.info(f"Open weather data: {weather}")
             self.OpenWeatherCache.cache_data(weather)
         else:
             log.warning('no online weather data trying from cache')
@@ -107,39 +100,38 @@ class OpenWeatherService(config.Component):
 
         return weather
 
-    def get_average_weather(self, days: int) -> Optional[AverageWeather]:
+    def get_average_weather(self, timedelta: dt.timedelta) -> Optional[AverageWeather]:
         log.debug(f'calculating average weather from {len(self.OpenWeatherCache.cache)} datapoints')
-        weathers = self.OpenWeatherCache.retrieve_data_for_period(
-            dt.datetime.now() - dt.timedelta(days=days))  # type: Optional[List[Weather]]
+        weathers = self.OpenWeatherCache.retrieve_data_for_period(dt.datetime.now() - timedelta)  # type: Optional[List[Weather]]
         if weathers:
             average = AverageWeather(
-                span=days,
-                span_type=SpanType.day,
+                span=timedelta,
                 temperature=statistics.mean([w.temperature for w in weathers]),
                 wind=statistics.mean([w.wind for w in weathers]),
                 clouds=statistics.mean([w.clouds for w in weathers]),
                 humidity=statistics.mean([w.humidity for w in weathers]),
                 pressure=statistics.mean([w.pressure for w in weathers]))
-            log.info(f"Average weather from arduino for the past {days} days: {average}")
+            log.info(f"Average weather from arduino for the past {timedelta}: {average}")
             return average
         return None
 
     def get_hourly_average_weather_for_last_day(self) -> Optional[Dict[int, AverageWeather]]:
         if len(self.OpenWeatherCache.cache) > 0:
             weathers = self.OpenWeatherCache.retrieve_hourly_data_for_day()  # type: Optional[Dict[int, List[Weather]]]
-            averages_for_hour = dict()
+            averages_by_hour = dict()
             if weathers:
-                log.debug(f'calculating hourly average weather')
+                log.info(f'calculating hourly average weather')
                 for name, data in weathers.items():
-                    averages_for_hour[name] = AverageWeather(
-                        span=1,
-                        span_type=SpanType.hour,
+                    averages_by_hour[name] = AverageWeather(
+                        span=dt.timedelta(hours=1),
                         temperature=statistics.mean([w.temperature for w in data if w is not None]),
                         wind=statistics.mean([w.wind for w in data if w is not None]),
                         clouds=statistics.mean([w.clouds for w in data if w is not None]),
                         humidity=statistics.mean([w.humidity for w in data if w is not None]),
                         pressure=statistics.mean([w.pressure for w in data if w is not None]))
-                return None
+                log.info(f"Averages: {averages_by_hour}")
+                return averages_by_hour
+            return None
 
 
 service = OpenWeatherService('OpenWeatherService')

@@ -92,10 +92,10 @@ class MqttService(config.Component):
         if clear_message:
             self.packages[topic] = None
         if message is not None:
-            log.info(f'received {message.payload} for {topic}')
+            log.debug(f'received {message.payload} for {topic}')
             return message.payload
         else:
-            log.info(f'no message available for {topic}')
+            log.debug(f'no message available for {topic}')
             return None
 
     def subscribe(self, topics: Union[str, List[str]]):
