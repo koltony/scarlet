@@ -30,14 +30,9 @@ class MainController(config.Component):
         self.BlindsController.schedule_jobs()
         self.IrrigationController.schedule_jobs()
         self.DatabaseController.schedule_jobs()
-        self.schedule_jobs()
         while True:
             schedule.run_pending()
             time.sleep(0.01)
-
-    @staticmethod
-    def schedule_jobs():
-        schedule.every().minute.do(mqtt.service.keep_connection_alive)
 
 
 class DatabaseController(config.Component):
@@ -221,7 +216,7 @@ class BlindsController(config.Component):
         return mqtt.service.publish('eclipse_checkin', 'connected')
 
     def emergency_close_test(self):
-        log.debug("Checking emergency conditions for blinds")
+        log.info("Checking emergency conditions for blinds")
         wind_speed = arduino_weather.service.get_weather_data()
         if wind_speed:
             if wind_speed.wind >= self.absolute_wind_speed_limit:
@@ -272,9 +267,11 @@ class BlindsController(config.Component):
         log.info("Deciding on opening and closing blinds")
         conditions = self.check_conditions()
         if conditions is True:
+            log.info(f"Opening blinds")
             mqtt.service.publish('mari', self.open_signal_mari)
             mqtt.service.publish('pisti', self.open_signal_pisti)
         elif conditions is False:
+            log.info(f"Closing blinds")
             mqtt.service.publish('mari', self.close_signal_mari)
             mqtt.service.publish('pisti', self.close_signal_pisti)
 

@@ -54,7 +54,7 @@ class ArduinoWeather(config.Component):
 
         meter_per_sec = (value_voltage - self.anemometer_milli_volt_out_min) / meter_per_sec_per_voltage
         km_per_hour = round(meter_per_sec * 3.6, 1)
-        log.info(f"calculated wind speed: {km_per_hour}")
+        log.debug(f"calculated wind speed: {km_per_hour}")
         return km_per_hour
 
     def get_weather_data(self) -> Optional[Weather]:
@@ -67,7 +67,7 @@ class ArduinoWeather(config.Component):
                               light=float(light),
                               rain=bool(rain))
             self.ArduinoWeatherCache.cache_data(weather)
-            log.info(f"Got weather data from arduino")
+            log.info(f"Got weather data from arduino : {weather}")
             return weather
 
         log.debug("Loading arduino weather data from cache")

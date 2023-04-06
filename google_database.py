@@ -13,7 +13,7 @@ class FirebaseRealtimeDatabase(config.Component):
         self.credentials = config.ConfigOption(required=True).secret
         self.database_url = config.ConfigOption(required=True).string  # type: str
         self.app = None  # type: Optional[App]
-        self.listened_data = dict()  # type: Dict[str, firebase_admin.db.Event]
+        self.listened_data = dict()  # type: Dict[str, Optional[firebase_admin.db.Event]]
 
     def initialize(self):
         self.app = firebase_admin.initialize_app(credentials.Certificate(self.credentials), {'databaseURL': self.database_url})
@@ -27,6 +27,15 @@ class FirebaseRealtimeDatabase(config.Component):
             db.reference(reference).listen(self._on_message)
         except Exception as e:
             log.error(e)
+
+    def get_update(self, reference='/') -> Optional[dict]:
+        data = self.listened_data.get(reference)
+        if data:
+            self.listened_data[reference] = None
+            if data.data:
+                log.info(f'Got data for: {reference} ')
+                return data.data
+        return None
 
     @staticmethod
     def set_data(data: dict, reference: str = '/'):
