@@ -208,7 +208,7 @@ class BlindsController(config.Component):
     def schedule_jobs(self):
         log.debug("scheduling blinds related jobs")
         schedule.every(15).minutes.do(self.decide_opening_and_closing)
-        schedule.every(25).seconds.do(self.emergency_close_test)
+        schedule.every(35).seconds.do(self.emergency_close_test)
         schedule.every(10).minutes.do(self.checkin_to_eclipse_arduino)
 
     @staticmethod

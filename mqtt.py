@@ -44,13 +44,9 @@ class MqttService(config.Component):
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_connect_fail = self.on_connect_fail
-        try:
-            log.debug(f"Connecting to {self.ip_address}")
-            self.client.connect(host=self.ip_address, port=self.port, keepalive=self.timeout)
-            self.client.loop_start()
-            time.sleep(2)
-        except socket.timeout as e:
-            log.error(e)
+        log.debug(f"Connecting to {self.ip_address}")
+        self.client.connect_async(host=self.ip_address, port=self.port, keepalive=self.timeout)
+        self.client.loop_start()
 
     @staticmethod
     def on_connect(client, userdata, flags, rc):
@@ -65,6 +61,7 @@ class MqttService(config.Component):
         log.error(f'Connection have failed for {client}')
 
     def on_message(self, client, userdata, msg):
+        log.warning(f"message arrived: {msg.payload.decode()}")
         if msg:
             self.packages[msg.topic] = Package(topic=msg.topic, payload=msg.payload.decode())
 
@@ -74,22 +71,23 @@ class MqttService(config.Component):
                 log.info(f"{self.client_name} trying to reconnect")
                 try:
                     self.client.reconnect()
+                    self.client.loop_start()
+                    time.sleep(0.2)
                 except socket.timeout as e:
                     log.error(e.__traceback__)
                 if self.client.is_connected:
-                    self.client.loop_start()
-                    time.sleep(1)
                     self.subscribe(self.subscriptions)
-                    break
+                    return
                 else:
                     log.warning(f"{self.retry_amounts + 1 } try to reestablish connection have failed")
                     time.sleep(1)
+        else:
+            log.debug(f"{self.client_name} is connected {self.client.is_connected()}")
 
     def get_message(self, topic: str, clear_message: bool = False) -> Any:
         self.check_status()
         log.debug(f'getting message for topic: {topic}')
-        if topic not in self.subscriptions:
-            self.subscribe(topics=topic)
+        self.subscribe(topics=topic)
         time.sleep(0.2)
         message = self.packages.get(topic)
         if clear_message:
@@ -114,8 +112,7 @@ class MqttService(config.Component):
                 self.subscriptions.append(topic)
 
     def publish(self, topic: str, payload: Any, retain: bool = False, is_silent=False):
-        if topic not in self.subscriptions:
-            self.subscribe(topics=topic)
+        self.subscribe(topics=topic)
         self.client.publish(topic=topic, payload=payload, retain=retain)
         if not is_silent:
             log.info(f"published message: {payload} for topic: {topic}")
