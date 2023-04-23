@@ -61,7 +61,6 @@ class MqttService(config.Component):
         log.error(f'Connection have failed for {client}')
 
     def on_message(self, client, userdata, msg):
-        log.warning(f"message arrived: {msg.payload.decode()}")
         if msg:
             self.packages[msg.topic] = Package(topic=msg.topic, payload=msg.payload.decode())
 

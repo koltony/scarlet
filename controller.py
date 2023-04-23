@@ -2,7 +2,6 @@ import statistics
 import time
 
 import schedule
-import diskcache
 import pandas as pd
 from collections import OrderedDict
 from typing import Optional, Dict, List
@@ -13,7 +12,7 @@ import google_database
 import config
 import cache
 from dataclasses import dataclass
-import mqtt
+import http_request
 import log as log_
 
 log = log_.service.logger('controller')
@@ -180,25 +179,22 @@ class IrrigationController(config.Component):
     @staticmethod
     def irrigation_process(program: IrrigationData):
         log.info("Starting irrigation")
-        mqtt.service.publish('zone1', program.irrigation_program.zone1)
-        mqtt.service.publish('zone2', program.irrigation_program.zone2)
-        mqtt.service.publish('zone3', program.irrigation_program.zone3)
-        mqtt.service.publish('zone_connected', program.irrigation_program.zone_connected)
-        mqtt.service.publish('active', 1)
+        http_request.service.send_data(
+            '/irrigation',
+            {
+             'zone1': program.irrigation_program.zone1,
+             'zone2': program.irrigation_program.zone2,
+             'zone3': program.irrigation_program.zone3,
+             'zone_connected': program.irrigation_program.zone_connected,
+             'active': 'on'
+            }
+        )
 
 
 class BlindsController(config.Component):
 
     def __init__(self, name):
         super().__init__(name=name)
-        self.stop_signal_mari = config.ConfigOption(required=True).integer  # type: int
-        self.open_signal_mari = config.ConfigOption(required=True).integer  # type: int
-        self.close_signal_mari = config.ConfigOption(required=True).integer  # type: int
-
-        self.stop_signal_pisti = config.ConfigOption(required=True).integer  # type: int
-        self.open_signal_pisti = config.ConfigOption(required=True).integer  # type: int
-        self.close_signal_pisti = config.ConfigOption(required=True).integer  # type: int
-
         self.absolute_wind_speed_limit = config.ConfigOption(required=True).integer  # type: int
         self.wind_speed_limit = config.ConfigOption(required=True).integer  # type: int
         self.light_limit = config.ConfigOption(required=True).integer  # type: int
@@ -209,25 +205,22 @@ class BlindsController(config.Component):
         log.debug("scheduling blinds related jobs")
         schedule.every(15).minutes.do(self.decide_opening_and_closing)
         schedule.every(35).seconds.do(self.emergency_close_test)
-        schedule.every(10).minutes.do(self.checkin_to_eclipse_arduino)
-
-    @staticmethod
-    def checkin_to_eclipse_arduino():
-        return mqtt.service.publish('eclipse_checkin', 'connected')
 
     def emergency_close_test(self):
         log.info("Checking emergency conditions for blinds")
         wind_speed = arduino_weather.service.get_weather_data()
         if wind_speed:
             if wind_speed.wind >= self.absolute_wind_speed_limit:
-                mqtt.service.publish('mari', self.close_signal_mari)
-                mqtt.service.publish('pisti', self.close_signal_pisti)
+                http_request.service.send_data(
+                    '/blinds',
+                    {'left_blind': 'up', 'right_blind': 'up'})
             return
         wind_speed = open_weather.service.get_weather_data()
         if wind_speed:
             if wind_speed.wind >= self.absolute_wind_speed_limit:
-                mqtt.service.publish('mari', self.close_signal_mari)
-                mqtt.service.publish('pisti', self.close_signal_pisti)
+                http_request.service.send_data(
+                    '/blinds',
+                    {'left_blind': 'up', 'right_blind': 'up'})
             return
 
     def check_open_weather_conditions(self, weather: open_weather.Weather) -> bool:
@@ -268,12 +261,14 @@ class BlindsController(config.Component):
         conditions = self.check_conditions()
         if conditions is True:
             log.info(f"Opening blinds")
-            mqtt.service.publish('mari', self.open_signal_mari)
-            mqtt.service.publish('pisti', self.open_signal_pisti)
+            http_request.service.send_data(
+                '/blinds',
+                {'left_blind': 'down', 'right_blind': 'down'})
         elif conditions is False:
             log.info(f"Closing blinds")
-            mqtt.service.publish('mari', self.close_signal_mari)
-            mqtt.service.publish('pisti', self.close_signal_pisti)
+            http_request.service.send_data(
+                '/blinds',
+                {'left_blind': 'up', 'right_blind': 'up'})
 
 
 controller = MainController(name='MainController')

@@ -1,5 +1,5 @@
 import config
-import mqtt
+import http_request
 from enum import Enum, auto
 from dataclasses import dataclass
 import datetime as dt
@@ -58,14 +58,12 @@ class ArduinoWeather(config.Component):
         return km_per_hour
 
     def get_weather_data(self) -> Optional[Weather]:
-        wind = mqtt.service.get_message('wind', clear_message=True)
-        light = mqtt.service.get_message('light', clear_message=True)
-        rain = mqtt.service.get_message('rain', clear_message=True)
-        if wind is not None and light is not None:
-            wind = self._value_to_wind_speed(float(wind))
+        data = http_request.service.get_data("/weather")
+        if data is not None:
+            wind = self._value_to_wind_speed(float(data['wind']))
             weather = Weather(wind=wind,
-                              light=float(light),
-                              rain=bool(rain))
+                              light=float(data['light']),
+                              rain=bool(data['rain']))
             self.ArduinoWeatherCache.cache_data(weather)
             log.info(f"Got weather data from arduino : {weather}")
             return weather
