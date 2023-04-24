@@ -84,7 +84,7 @@ class ArduinoWeather(config.Component):
                 span=timedelta,
                 light=statistics.mean([w.light for w in weathers if w is not None]),
                 wind=statistics.mean([w.wind for w in weathers if w is not None]))
-            log.info(f"Average weather from arduino for the past {timedelta}")
+            log.info(f"Average weather from arduino for the past {timedelta} is: {average}")
             return average
         return None
 

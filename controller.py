@@ -171,7 +171,8 @@ class IrrigationController(config.Component):
                         sunrise = open_weather.service.get_weather_data().sunrise
                         self.IrrigationControllerCache.cache_data(IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p))
                         return
-                    log.debug("Program not set due to conditions")
+                    log.info(f"Program not set because this program should only run every 2nd days, last run: {last_run}")
+            log.info("Program not set due to conditions")
         else:
             log.warning("No weather score data available, using default program for next run")
             self.IrrigationControllerCache.cache_data(IrrigationData(f"6:00", self.Programs.DefaultProgram))
@@ -211,6 +212,7 @@ class BlindsController(config.Component):
         wind_speed = arduino_weather.service.get_weather_data()
         if wind_speed:
             if wind_speed.wind >= self.absolute_wind_speed_limit:
+                log.info(f"wind speed({wind_speed.wind}) is larger than {self.absolute_wind_speed_limit} closing blinds")
                 http_request.service.send_data(
                     '/blinds',
                     {'left_blind': 'up', 'right_blind': 'up'})
@@ -218,20 +220,28 @@ class BlindsController(config.Component):
         wind_speed = open_weather.service.get_weather_data()
         if wind_speed:
             if wind_speed.wind >= self.absolute_wind_speed_limit:
+                log.info(f"wind speed({wind_speed.wind}) is larger than {self.absolute_wind_speed_limit} closing blinds")
                 http_request.service.send_data(
                     '/blinds',
                     {'left_blind': 'up', 'right_blind': 'up'})
             return
 
     def check_open_weather_conditions(self, weather: open_weather.Weather) -> bool:
+        log.debug(f"Current time: {dt.datetime.now().hour} < {weather.sunset.hour}")
         if dt.datetime.now().hour < weather.sunset.hour:
+            log.debug(f"temp: {weather.temperature} > {self.temperature_limit} and wind: {weather.wind} < {self.wind_speed_limit}")
             if weather.wind < self.wind_speed_limit and weather.temperature > self.temperature_limit:
+                log.debug(f"returning True for open weather conditions")
                 return True
+        log.debug(f"returning False for open weather conditions")
         return False
 
     def check_arduino_weather_conditions(self,  weather: arduino_weather.AverageWeather) -> bool:
+        log.debug(f"Light levels({weather.light} > {self.light_limit} and wind speed: {weather.wind} < {self.wind_speed_limit}")
         if weather.light > self.light_limit and weather.wind < self.wind_speed_limit:
+            log.debug(f"returning True for arduino weather conditions")
             return True
+        log.debug(f"returning False for arduino weather conditions")
         return False
 
     def check_conditions(self) -> Optional[bool]:
@@ -243,6 +253,8 @@ class BlindsController(config.Component):
                 log.info("Checking conditions based on arduino and open weather data")
                 if self.check_arduino_weather_conditions(arduino_weather_data) and self.check_open_weather_conditions(open_weather_data):
                     return True
+                else:
+                    return False
             elif open_weather_data:
                 log.debug("Only open weather is checked")
                 if self.check_open_weather_conditions(open_weather_data):
@@ -257,7 +269,7 @@ class BlindsController(config.Component):
             return False
 
     def decide_opening_and_closing(self):
-        log.info("Deciding on opening and closing blinds")
+        log.debug("Deciding on opening and closing blinds")
         conditions = self.check_conditions()
         if conditions is True:
             log.info(f"Opening blinds")
