@@ -24,14 +24,30 @@ class MainController(config.Component):
         self.IrrigationController = IrrigationController('IrrigationController')
         self.BlindsController = BlindsController('BlindsController')
         self.DatabaseController = DatabaseController('DatabaseController')
+        self.CleanupController = CleanupController('CleanupController')
 
     def start_process(self):
         self.BlindsController.schedule_jobs()
         self.IrrigationController.schedule_jobs()
         self.DatabaseController.schedule_jobs()
+        self.CleanupController.schedule_jobs()
         while True:
             schedule.run_pending()
             time.sleep(0.01)
+
+
+class CleanupController(config.Component):
+    def __init__(self, name):
+        super().__init__(name=name)
+
+    def schedule_jobs(self):
+        schedule.every().monday.at("02:00").do(self.delete_logs)
+        schedule.every().thursday.at("02:00").do(self.delete_logs)
+
+    @staticmethod
+    def delete_logs():
+        log.info("flushing logfile")
+        log_.service.clear_log_file()
 
 
 class DatabaseController(config.Component):

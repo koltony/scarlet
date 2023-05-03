@@ -17,6 +17,6 @@ log = log_.service.logger('main')
 
 log_.service.set_log_level(log_.LogLevels.debug)
 
-config.service.start_process(config_file='config.yaml', encryption_key='testkey.key', secrets_file='esecrets.yaml')
+config.service.start_process(config_file='config.yaml', encryption_key='secrets.key', secrets_file='esecrets.yaml')
 controller.controller.start_process()
 

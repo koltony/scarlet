@@ -1,5 +1,4 @@
 import logging
-import os
 import coloredlogs
 import sys
 from typing import Dict
@@ -69,7 +68,7 @@ class Log:
                 self.list_loggers()[module_name].setLevel(modules_by_name[module_name].value)
 
     def clear_log_file(self):
-        os.remove(self.filename)
+        self.file_output_handler.stream.truncate(0)
 
 
 service = Log()
