@@ -13,10 +13,15 @@ import datetime as dt
 import random
 import log as log_
 
-log = log_.service.logger('main')
 
-log_.service.set_log_level(log_.LogLevels.debug)
+def run():
+    log = log_.service.logger('main')
 
-config.service.start_process(config_file='config.yaml', encryption_key='secrets.key', secrets_file='esecrets.yaml')
-controller.controller.start_process()
+    log_.service.set_log_level(log_.LogLevels.debug)
 
+    config.service.start_process(config_file='config.yaml', encryption_key='secrets.key', secrets_file='esecrets.yaml')
+    controller.controller.start_process()
+
+
+if __name__ == '__main__':
+    run()
