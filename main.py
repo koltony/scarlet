@@ -2,6 +2,7 @@ import os
 import time
 import importlib
 import traceback
+import schedule
 
 import log as log_
 import file_encryption
@@ -42,5 +43,6 @@ if __name__ == '__main__':
         except Exception as e:
             log.error(f"Critical error: {traceback.format_exc()}")
             google_database.service.close_connection()
+            schedule.clear()
             reload_modules()
-            time.sleep(30)
+            time.sleep(60)
