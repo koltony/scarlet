@@ -1,27 +1,46 @@
-import datetime
+import os
 import time
-import config
+import importlib
+import traceback
+
+import log as log_
 import file_encryption
+import config
 import cache
-import schedule
 import open_weather
 import arduino_weather
-import logging
-import controller
 import google_database
-import datetime as dt
-import random
-import log as log_
+import controller
 
 
 def run():
-    log = log_.service.logger('main')
-
-    log_.service.set_log_level(log_.LogLevels.debug)
-
-    config.service.start_process(config_file='config.yaml', encryption_key='secrets.key', secrets_file='esecrets.yaml')
+    path = os.path.dirname(os.path.realpath(__file__))
+    config.service.start_process(
+        config_file=os.path.join(path, 'config.yaml'),
+        encryption_key=os.path.join(path, 'secrets.key'),
+        secrets_file=os.path.join(path, 'esecrets.yaml'))
     controller.controller.start_process()
 
 
+def reload_modules():
+    log.info(f"reloading modules")
+    importlib.reload(file_encryption)
+    importlib.reload(config)
+    importlib.reload(cache)
+    importlib.reload(open_weather)
+    importlib.reload(arduino_weather)
+    importlib.reload(google_database)
+    importlib.reload(controller)
+
+
 if __name__ == '__main__':
-    run()
+    log = log_.service.logger('main')
+    log_.service.set_log_level(log_.LogLevels.debug)
+    while True:
+        try:
+            run()
+        except Exception as e:
+            log.error(f"Critical error: {traceback.format_exc()}")
+            google_database.service.close_connection()
+            reload_modules()
+            time.sleep(30)

@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, db, App
 from typing import Optional, Dict
+import traceback
 import config
 import log as log_
 
@@ -10,23 +11,31 @@ log = log_.service.logger('google_database')
 class FirebaseRealtimeDatabase(config.Component):
     def __init__(self, name):
         super().__init__(name)
+        self.app_name = config.ConfigOption(required=True).string
         self.credentials = config.ConfigOption(required=True).secret
         self.database_url = config.ConfigOption(required=True).string  # type: str
         self.app = None  # type: Optional[App]
-        self.listened_data = dict()  # type: Dict[str, Optional[firebase_admin.db.Event]]
+        self.listened_data = dict()  # type: Dict[str, Optional[db.Event]]
 
     def initialize(self):
-        self.app = firebase_admin.initialize_app(credentials.Certificate(self.credentials), {'databaseURL': self.database_url})
+        self.app = firebase_admin.initialize_app(credentials.Certificate(self.credentials), {'databaseURL': self.database_url}, name=self.app_name)
 
-    def _on_message(self, obj: firebase_admin.db.Event):
+    def close_connection(self):
+        try:
+            firebase_admin.delete_app(self.app)
+            log.info(f"Closing google database: {self.app_name} was successful")
+        except Exception as e:
+            log.error(f"Could not close google database: {traceback.format_exc()}")
+
+    def _on_message(self, obj: db.Event):
         log.debug(f'message from realtime database from: {obj.path}')
         self.listened_data[obj.path] = obj
 
     def listen_to(self, reference: str = '/'):
         try:
-            db.reference(reference).listen(self._on_message)
+            db.reference(path=reference, app=self.app).listen(self._on_message)
         except Exception as e:
-            log.error(e)
+            log.error(f" Listening to '{reference}' {traceback.format_exc()}")
 
     def get_update(self, reference='/') -> Optional[dict]:
         data = self.listened_data.get(reference)

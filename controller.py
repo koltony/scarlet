@@ -11,7 +11,7 @@ import arduino_weather
 import google_database
 import config
 import cache
-from dataclasses import dataclass
+import os
 import http_request
 import log as log_
 
@@ -65,7 +65,7 @@ class DatabaseController(config.Component):
     def post_average_weather_data():
         o_weather = open_weather.service.get_average_weather(timedelta=dt.timedelta(hours=1))
         a_weather = arduino_weather.service.get_average_weather(timedelta=dt.timedelta(minutes=15))
-
+        
         if o_weather and a_weather:
             data = {'time': dt.datetime.now().strftime("%H:%M:%S"),
                     'temperature': o_weather.temperature,
@@ -97,11 +97,12 @@ class IrrigationPrograms(config.Component):
         self.DefaultProgram = self.Program_2
 
 
-@dataclass
 class IrrigationData(cache.CachedObject):
-    scheduled_time: str
-    irrigation_program: IrrigationProgram
-    is_started = False
+    def __init__(self, scheduled_time: str, irrigation_program: IrrigationProgram):
+        super().__init__()
+        self.scheduled_time = scheduled_time
+        self.irrigation_program = irrigation_program
+        self.is_started = False
 
 
 class IrrigationController(config.Component):
@@ -131,7 +132,7 @@ class IrrigationController(config.Component):
     @staticmethod
     def calculate_score() -> Optional[float]:
         log.info("Calculating score for irrigation run")
-        df = pd.read_csv(filepath_or_buffer="resources/vapour.csv", header=0, index_col=0)
+        df = pd.read_csv(filepath_or_buffer=os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources", "vapour.csv"), header=0, index_col=0)
         open_weather_data = open_weather.service.get_hourly_average_weather_for_last_day()
         scores = list()
         if open_weather_data and not df.empty:
@@ -168,6 +169,16 @@ class IrrigationController(config.Component):
         log.debug(f"Irrigation system ran 7 or more  day(s) ago")
         return 7
 
+    @staticmethod
+    def post_irrigation_run(program: IrrigationData):
+        data = {'time': dt.datetime.now().strftime("%H:%M:%S"),
+                'program_name': program.irrigation_program.name,
+                'scheduled_time': program.scheduled_time
+                }
+
+        log.info("Posting average weather data to Database")
+        google_database.service.set_data(data=data, reference='/irrigation_run')
+
     def decide_irrigation(self):
         log.info("Making decision on next irrigation run")
         arduino_data = arduino_weather.service.get_weather_data()
@@ -185,13 +196,17 @@ class IrrigationController(config.Component):
                     if p.every_x_day <= last_run:
                         log.info(f"Using program: {name} in the next run")
                         sunrise = open_weather.service.get_weather_data().sunrise
-                        self.IrrigationControllerCache.cache_data(IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p))
+                        irrigation_data = IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p)
+                        self.IrrigationControllerCache.cache_data(irrigation_data)
+                        self.post_irrigation_run(IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p))
                         return
                     log.info(f"Program not set because this program should only run every 2nd days, last run: {last_run}")
             log.info("Program not set due to conditions")
         else:
             log.warning("No weather score data available, using default program for next run")
-            self.IrrigationControllerCache.cache_data(IrrigationData(f"6:00", self.Programs.DefaultProgram))
+            irrigation_data = IrrigationData(f"6:00", self.Programs.DefaultProgram)
+            self.IrrigationControllerCache.cache_data(irrigation_data)
+            self.post_irrigation_run(irrigation_data)
 
     @staticmethod
     def irrigation_process(program: IrrigationData):

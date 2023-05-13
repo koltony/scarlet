@@ -57,16 +57,32 @@ class ArduinoWeather(config.Component):
         log.debug(f"calculated wind speed: {km_per_hour}")
         return km_per_hour
 
+    def _validate_wind_speed(self, wind: float) -> bool:
+        if wind < 20:
+            return True
+        historical_data = self.ArduinoWeatherCache.retrieve_data_for_period(dt.datetime.now()-dt.timedelta(hours=1))  # type: Optional[List[Weather]]
+        if historical_data:
+            max_wind = 0
+            for data in historical_data:
+                if data.wind > max_wind:
+                    max_wind = data.wind
+            if max_wind * 2 > wind:
+                return True
+        log.warning(f"Wind speed of: {wind} km/hour is invalid")
+        return False
+
     def get_weather_data(self) -> Optional[Weather]:
         data = http_request.service.get_data("/weather")
         if data is not None:
             wind = self._value_to_wind_speed(float(data['wind']))
+            self._validate_wind_speed(wind)
             weather = Weather(wind=wind,
                               light=float(data['light']),
                               rain=bool(data['rain']))
-            self.ArduinoWeatherCache.cache_data(weather)
-            log.info(f"Got weather data from arduino : {weather}")
-            return weather
+            if self._validate_wind_speed(wind):
+                self.ArduinoWeatherCache.cache_data(weather)
+                log.info(f"Got weather data from arduino : {weather}")
+                return weather
 
         log.debug("Loading arduino weather data from cache")
         weather = self.ArduinoWeatherCache.retrieve_last_from_cache()
@@ -78,7 +94,7 @@ class ArduinoWeather(config.Component):
     def get_average_weather(self, timedelta: dt.timedelta) -> Optional[AverageWeather]:
         log.debug(f'calculating average weather from {len(self.ArduinoWeatherCache.cache)} datapoints')
         weathers = self.ArduinoWeatherCache.retrieve_data_for_period(
-            dt.datetime.now() - timedelta) # type: Optional[List[Weather]]
+            dt.datetime.now() - timedelta)  # type: Optional[List[Weather]]
         if weathers:
             average = AverageWeather(
                 span=timedelta,
