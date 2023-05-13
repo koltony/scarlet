@@ -158,7 +158,7 @@ class IrrigationController(config.Component):
         run_dates = OrderedDict({1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False})
         for name in self.IrrigationControllerCache.cache.iterkeys():
             weather = self.IrrigationControllerCache.cache[name]
-            time_since = weather.time.day - today.day
+            time_since = weather.timestamp.day - today.day
             if time_since <= 7:
                 run_dates[time_since+1] = True
         log.debug(f"Calculated run timeline: {run_dates}")
