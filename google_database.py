@@ -46,18 +46,16 @@ class FirebaseRealtimeDatabase(config.Component):
                 return data.data
         return None
 
-    @staticmethod
-    def set_data(data: dict, reference: str = '/'):
+    def set_data(self, data: dict, reference: str = '/'):
         log.debug(f"Set data for: {reference}")
         try:
-            db.reference(reference).set(data)
+            db.reference(path=reference, app=self.app).set(data)
         except Exception as e:
             log.error(e)
 
-    @staticmethod
-    def get_data(reference: str = '/', etag: bool = False):
+    def get_data(self, reference: str = '/', etag: bool = False):
         try:
-            return db.reference(reference).get(etag=etag)
+            return db.reference(path=reference, app=self.app).get(etag=etag)
         except Exception as e:
             log.error(e)
             return None

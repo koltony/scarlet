@@ -34,6 +34,17 @@ def reload_modules():
     importlib.reload(controller)
 
 
+def cleanup():
+    try:
+        log.info("Starting cleanup procedures")
+        google_database.service.close_connection()
+        log.info("removing schedules")
+        schedule.clear()
+        reload_modules()
+    except Exception as e:
+        log.error(f"cleanup procedure failed: {traceback.format_exc()}")
+
+
 if __name__ == '__main__':
     log = log_.service.logger('main')
     log_.service.set_log_level(log_.LogLevels.debug)
@@ -42,7 +53,6 @@ if __name__ == '__main__':
             run()
         except Exception as e:
             log.error(f"Critical error: {traceback.format_exc()}")
-            google_database.service.close_connection()
-            schedule.clear()
-            reload_modules()
+            cleanup()
             time.sleep(60)
+
