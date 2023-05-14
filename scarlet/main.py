@@ -17,9 +17,9 @@ import controller
 def run():
     path = os.path.dirname(os.path.realpath(__file__))
     config.service.start_process(
-        config_file=os.path.join(path, 'config.yaml'),
-        encryption_key=os.path.join(path, 'secrets.key'),
-        secrets_file=os.path.join(path, 'esecrets.yaml'))
+        config_file=os.path.join(path, '..', 'config.yaml'),
+        encryption_key=os.path.join(path, '..' ,'secrets.key'),
+        secrets_file=os.path.join(path, '..', 'esecrets.yaml'))
     controller.controller.start_process()
 
 

@@ -1,9 +1,9 @@
 import yaml
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Union, TextIO, Any
 from enum import Enum
 import re
-import file_encryption
 import inspect
+import file_encryption
 import log as log_
 
 log = log_.service.logger('config')
@@ -96,17 +96,35 @@ class ConfigService:
         self.secrets = None
         self.config_classes = self._collect_config_classes()
 
+    def clear_all(self):
+        self.config_file = None
+        self.secrets = None
+        self.config_classes = self._collect_config_classes()
+        Component.component_classes_by_name = dict()
+
     def load_secrets(self, encryption_key: str, encrypted_file: str):
         log.debug(f"loading secrets file")
         self.secrets = file_encryption.Secrets.decrypt_file(encryption_key=encryption_key, encrypted_file=encrypted_file)
 
-    def load_config(self, path: str):
+    def _load_yaml_from_raw(self, stream: Union[str, TextIO]):
+        try:
+            self.config_file = yaml.load(stream, Loader=yaml.FullLoader)
+        except yaml.YAMLError as exc:
+            log.error(exc)
+
+    def _load_yaml_from_file(self, path):
+        log.debug(f"loading config file from: {path}")
         with open(path, "r") as stream:
-            try:
-                self.config_file = yaml.safe_load(stream)
-                log.debug(f"loading config file from: {path}")
-            except yaml.YAMLError as exc:
-                log.error(exc)
+            self._load_yaml_from_raw(stream)
+
+    def load_config(self, path: str = None, raw_yaml: str = None):
+        if (path and raw_yaml) or (not path and not raw_yaml):
+            raise ValueError(f"path or raw_yaml have to be specified but not both")
+
+        if path:
+            self._load_yaml_from_file(path)
+        else:
+            self._load_yaml_from_raw(raw_yaml)
 
     @staticmethod
     def _collect_config_classes():
@@ -123,7 +141,7 @@ class ConfigService:
 
     def _get_configureables_for_component(self, component) -> list:
         members = inspect.getmembers(component)
-        return [member[0] for member in members if self._is_config_option(member[1])]
+        return [member[0] for member in members if self._is_config_option(member[1]) or isinstance(member[0], Component)]
 
     @staticmethod
     def _set_configure_defaults_for_component(component, not_configured_attributes: list):
@@ -134,18 +152,21 @@ class ConfigService:
     def configure_component(self, component, config):
         configureables = self._get_configureables_for_component(component)
         log.info(f"configurable attributes of {component.name}: {configureables}")
-        for config_name, config in config.items():
-            if hasattr(component, config_name):
-                if config_name in Component.component_classes_by_name.keys():
-                    self.configure_component(Component.component_classes_by_name[config_name], config)
-                elif config_name in configureables:
-                    log.debug(f'configuring {component.name}.{config_name}')
-                    setattr(component, config_name, getattr(component, config_name)(config_name, config, component.name))
-                    configureables.remove(config_name)
+        log.info(config)
+        if config:
+            for config_name, config in config.items():
+                if hasattr(component, config_name):
+                    log.info(f"name: {config_name}  keys: {Component.component_classes_by_name.keys()}")
+                    if config_name in Component.component_classes_by_name.keys():
+                        self.configure_component(Component.component_classes_by_name[config_name], config)
+                    elif config_name in configureables:
+                        log.debug(f'configuring {component.name}.{config_name}')
+                        setattr(component, config_name, getattr(component, config_name)(config_name, config, component.name))
+                        configureables.remove(config_name)
+                    else:
+                        ValueError(f"{component.name}.{config_name} is not configurable")
                 else:
-                    ValueError(f"{component.name}.{config_name} is not configurable")
-            else:
-                ValueError(f'{component} does not have attribute: {config_name}')
+                    ValueError(f'{component} does not have attribute: {config_name}')
         if configureables:
             self._set_configure_defaults_for_component(component, configureables)
 
@@ -168,7 +189,7 @@ class ConfigService:
                 log.debug(f'Component {name} does not need to be initialied')
         log.info("All components have been initialized")
 
-    def start_process(self, config_file: str, encryption_key: Optional[str], secrets_file: Optional[str] = None):
+    def start_process(self, config_file: str, encryption_key: Optional[str] = None, secrets_file: Optional[str] = None):
         if secrets_file and encryption_key:
             self.load_secrets(encryption_key=encryption_key, encrypted_file=secrets_file)
 

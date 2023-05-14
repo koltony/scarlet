@@ -1,14 +1,11 @@
 import datetime as dt
 import requests
+import statistics
+from dataclasses import dataclass
+from typing import Optional, Dict, List
 import config
 import cache
-import diskcache
-from enum import Enum, auto
-from dataclasses import dataclass
-from collections import defaultdict
-from typing import Optional, Dict, List, Any
 import log as log_
-import statistics
 
 log = log_.service.logger('open_weather')
 

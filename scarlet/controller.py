@@ -1,17 +1,16 @@
 import statistics
 import time
-
 import schedule
 import pandas as pd
 from collections import OrderedDict
 from typing import Optional, Dict, List
 import datetime as dt
+import os
 import open_weather
 import arduino_weather
 import google_database
 import config
 import cache
-import os
 import http_request
 import log as log_
 
@@ -267,7 +266,7 @@ class BlindsController(config.Component):
         log.debug(f"returning False for open weather conditions")
         return False
 
-    def check_arduino_weather_conditions(self,  weather: arduino_weather.AverageWeather) -> bool:
+    def check_arduino_weather_conditions(self, weather: arduino_weather.AverageWeather) -> bool:
         log.debug(f"Light levels({weather.light} > {self.light_limit} and wind speed: {weather.wind} < {self.wind_speed_limit}")
         if weather.light > self.light_limit and weather.wind < self.wind_speed_limit:
             log.debug(f"returning True for arduino weather conditions")

@@ -11,8 +11,8 @@ log = log_.service.logger('google_database')
 class FirebaseRealtimeDatabase(config.Component):
     def __init__(self, name):
         super().__init__(name)
-        self.app_name = config.ConfigOption(required=True).string
-        self.credentials = config.ConfigOption(required=True).secret
+        self.app_name = config.ConfigOption(required=True).string  # type: str
+        self.credentials = config.ConfigOption(required=True).secret  # type: str
         self.database_url = config.ConfigOption(required=True).string  # type: str
         self.app = None  # type: Optional[App]
         self.listened_data = dict()  # type: Dict[str, Optional[db.Event]]

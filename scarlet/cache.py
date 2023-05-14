@@ -1,11 +1,8 @@
-import diskcache
-import time
 from collections import defaultdict
 import datetime as dt
+import os
 import diskcache
 from typing import Optional, Dict, List
-
-
 import config
 import log as log_
 
@@ -31,7 +28,7 @@ class Cache(config.Component):
         return len(self.cache)
 
     def initialize(self):
-        with diskcache.Cache(directory=self.cache_directory) as cache:
+        with diskcache.Cache(directory=os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'cache', self.cache_directory )) as cache:
             self.cache = cache
 
     def clear_cache(self):
