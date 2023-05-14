@@ -1,9 +1,9 @@
 import yaml
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Union, TextIO, Any
 from enum import Enum
 import re
-import file_encryption
 import inspect
+import file_encryption
 import log as log_
 
 log = log_.service.logger('config')
@@ -96,17 +96,35 @@ class ConfigService:
         self.secrets = None
         self.config_classes = self._collect_config_classes()
 
+    def clear_all(self):
+        self.config_file = None
+        self.secrets = None
+        self.config_classes = self._collect_config_classes()
+        Component.component_classes_by_name = dict()
+
     def load_secrets(self, encryption_key: str, encrypted_file: str):
         log.debug(f"loading secrets file")
         self.secrets = file_encryption.Secrets.decrypt_file(encryption_key=encryption_key, encrypted_file=encrypted_file)
 
-    def load_config(self, path: str):
+    def _load_yaml_from_raw(self, stream: Union[str, TextIO]):
+        try:
+            self.config_file = yaml.load(stream, Loader=yaml.FullLoader)
+        except yaml.YAMLError as exc:
+            log.error(exc)
+
+    def _load_yaml_from_file(self, path):
+        log.debug(f"loading config file from: {path}")
         with open(path, "r") as stream:
-            try:
-                self.config_file = yaml.safe_load(stream)
-                log.debug(f"loading config file from: {path}")
-            except yaml.YAMLError as exc:
-                log.error(exc)
+            self._load_yaml_from_raw(stream)
+
+    def load_config(self, path: str = None, raw_yaml: str = None):
+        if (path and raw_yaml) or (not path and not raw_yaml):
+            raise ValueError(f"path or raw_yaml have to be specified but not both")
+
+        if path:
+            self._load_yaml_from_file(path)
+        else:
+            self._load_yaml_from_raw(raw_yaml)
 
     @staticmethod
     def _collect_config_classes():
@@ -168,7 +186,7 @@ class ConfigService:
                 log.debug(f'Component {name} does not need to be initialied')
         log.info("All components have been initialized")
 
-    def start_process(self, config_file: str, encryption_key: Optional[str], secrets_file: Optional[str] = None):
+    def start_process(self, config_file: str, encryption_key: Optional[str] = None, secrets_file: Optional[str] = None):
         if secrets_file and encryption_key:
             self.load_secrets(encryption_key=encryption_key, encrypted_file=secrets_file)
 

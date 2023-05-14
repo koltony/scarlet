@@ -1,10 +1,7 @@
 import socket
-
 import paho.mqtt.client as mqtt
-import sys
 import time
 from typing import Any, List, Union, Dict, Optional
-from dataclasses import dataclass
 import config
 import log as log_
 

@@ -16,7 +16,7 @@ class LogLevels(Enum):
 class Log:
 
     def __init__(self):
-        self.filename = 'logs.log'
+        self.filename = '../logs.log'
         self.console_output_handler = logging.StreamHandler(stream=sys.stdout)
         self.file_output_handler = logging.FileHandler(filename=self.filename)
         self.set_console_format()

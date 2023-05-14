@@ -1,13 +1,11 @@
-import config
-import http_request
-from enum import Enum, auto
 from dataclasses import dataclass
 import datetime as dt
-import diskcache
-import cache
-from collections import defaultdict
 from typing import Optional, Dict, List
 import statistics
+
+import config
+import http_request
+import cache
 import log as log_
 
 log = log_.service.logger('ardu_weather')
