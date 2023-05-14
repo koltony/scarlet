@@ -1,4 +1,6 @@
 import logging
+import os.path
+
 import coloredlogs
 import sys
 from typing import Dict
@@ -16,7 +18,7 @@ class LogLevels(Enum):
 class Log:
 
     def __init__(self):
-        self.filename = '../logs.log'
+        self.filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'logs.log')
         self.console_output_handler = logging.StreamHandler(stream=sys.stdout)
         self.file_output_handler = logging.FileHandler(filename=self.filename)
         self.set_console_format()
