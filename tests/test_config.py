@@ -1,8 +1,5 @@
 import pytest
-from enum import Enum
-import importlib
 import textwrap
-import scarlet
 from scarlet import config
 from scarlet import log as log_
 
@@ -20,13 +17,14 @@ class DummySubComponent(config.Component):
         super().__init__(name)
 
         self.dummy_string = config.ConfigOption(required=True).string
-        self.dummy_integer = config.ConfigOption(required=True).integer
+        self.dummy_integer = config.ConfigOption(required=False, default=999).integer
         self.dummy_float = config.ConfigOption(required=True).float
         self.dummy_list = config.ConfigOption(required=True).list
         self.dummy_dictionary = config.ConfigOption(required=True).dictionary
 
     def __repr__(self):
         return f"{self.__class__.__name__}(" \
+                   f"name = {self.name}"\
                    f"dummy_string={self.dummy_string}," \
                    f" dummy_integer={self.dummy_integer}," \
                    f" dummy_float={self.dummy_float}," \
@@ -34,15 +32,15 @@ class DummySubComponent(config.Component):
                    f" dummy_dictionary={self.dummy_dictionary})"
 
 
-class DummyComponent(config.Component):
+class DummyMainComponent(config.Component):
     def __init__(self, name):
         super().__init__(name)
         self.DummySubComponent = DummySubComponent('DummySubComponent')
-        self.dummy_string = config.ConfigOption(required=True).string
-        self.dummy_integer = config.ConfigOption(required=True).integer
-        self.dummy_float = config.ConfigOption(required=True).float
-        self.dummy_list = config.ConfigOption(required=True).list
-        self.dummy_dictionary = config.ConfigOption(required=True).dictionary
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(" \
+                   f"name = {self.name}, "\
+                   f"DummySubComponent={self.DummySubComponent})"
 
 
 config_options = textwrap.dedent("""\
@@ -89,7 +87,6 @@ def test_config_option_in_component(dummy_string, dummy_integer, dummy_float, du
     component = DummySubComponent('SubComponent')
     load_config(config_options, dummy_string, dummy_integer, dummy_float, dummy_list, dummy_dictionary)
     config.service.configure_components()
-    config.service.initialize_components()
 
     assert \
         (component.dummy_string == dummy_string) and \
@@ -97,3 +94,53 @@ def test_config_option_in_component(dummy_string, dummy_integer, dummy_float, du
         (component.dummy_float == dummy_float) and \
         (component.dummy_list == dummy_list) and \
         (component.dummy_dictionary == dummy_dictionary)
+
+
+missing_config_options = textwrap.dedent("""\
+    SubComponent:
+      dummy_string: {dummy_string}
+    """)
+
+
+def test_required_configs():
+    config.service.clear_all()
+    component = DummySubComponent('SubComponent')
+    config.service.load_config(raw_yaml=missing_config_options)
+    with pytest.raises(TypeError):
+        config.service.configure_components()
+
+
+only_required_config_options = textwrap.dedent("""\
+    SubComponent:
+      dummy_string: Hello
+      dummy_float: 1.2
+      dummy_list: ['hello']
+      dummy_dictionary: {'hello': 1}
+    """)
+
+
+def test_default_configs():
+    config.service.clear_all()
+    component = DummySubComponent('SubComponent')
+    config.service.load_config(raw_yaml=only_required_config_options)
+    config.service.configure_components()
+    assert component.dummy_integer == 999
+
+
+sub_component_config_options = textwrap.dedent("""\
+    MainComponent:
+      DummySubComponent:
+        dummy_string: HelloSub
+        dummy_float: 1.2
+        dummy_list: ['hello']
+        dummy_dictionary: {'hello': 1}
+    """)
+
+
+def test_sub_component():
+    config.service.clear_all()
+    component = DummyMainComponent('MainComponent')
+    config.service.load_config(raw_yaml=sub_component_config_options)
+    config.service.configure_components()
+    assert component.DummySubComponent.dummy_string == 'HelloSub'
+

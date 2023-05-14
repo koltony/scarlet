@@ -141,7 +141,7 @@ class ConfigService:
 
     def _get_configureables_for_component(self, component) -> list:
         members = inspect.getmembers(component)
-        return [member[0] for member in members if self._is_config_option(member[1])]
+        return [member[0] for member in members if self._is_config_option(member[1]) or isinstance(member[0], Component)]
 
     @staticmethod
     def _set_configure_defaults_for_component(component, not_configured_attributes: list):
@@ -152,18 +152,21 @@ class ConfigService:
     def configure_component(self, component, config):
         configureables = self._get_configureables_for_component(component)
         log.info(f"configurable attributes of {component.name}: {configureables}")
-        for config_name, config in config.items():
-            if hasattr(component, config_name):
-                if config_name in Component.component_classes_by_name.keys():
-                    self.configure_component(Component.component_classes_by_name[config_name], config)
-                elif config_name in configureables:
-                    log.debug(f'configuring {component.name}.{config_name}')
-                    setattr(component, config_name, getattr(component, config_name)(config_name, config, component.name))
-                    configureables.remove(config_name)
+        log.info(config)
+        if config:
+            for config_name, config in config.items():
+                if hasattr(component, config_name):
+                    log.info(f"name: {config_name}  keys: {Component.component_classes_by_name.keys()}")
+                    if config_name in Component.component_classes_by_name.keys():
+                        self.configure_component(Component.component_classes_by_name[config_name], config)
+                    elif config_name in configureables:
+                        log.debug(f'configuring {component.name}.{config_name}')
+                        setattr(component, config_name, getattr(component, config_name)(config_name, config, component.name))
+                        configureables.remove(config_name)
+                    else:
+                        ValueError(f"{component.name}.{config_name} is not configurable")
                 else:
-                    ValueError(f"{component.name}.{config_name} is not configurable")
-            else:
-                ValueError(f'{component} does not have attribute: {config_name}')
+                    ValueError(f'{component} does not have attribute: {config_name}')
         if configureables:
             self._set_configure_defaults_for_component(component, configureables)
 
