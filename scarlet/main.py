@@ -3,6 +3,7 @@ import time
 import importlib
 import traceback
 import schedule
+import argparse
 
 import log as log_
 import file_encryption
@@ -14,11 +15,24 @@ import google_database
 import controller
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(prog='scarlet')
+    parser.add_argument('--log_level', required=False, type=str, help="Available logging options are debug, info, warning, error")
+    args = parser.parse_args()
+    if args.log_level:
+        try:
+            log_level = getattr(log_.LogLevels, args.log_level.lower())
+            log.info(f"log level set to {log_level.value}")
+            return log_level
+        except AttributeError:
+            print(f'Error: {args.log_level} log level does not exists')
+
+
 def run():
     path = os.path.dirname(os.path.realpath(__file__))
     config.service.start_process(
         config_file=os.path.join(path, '..', 'config.yaml'),
-        encryption_key=os.path.join(path, '..' ,'secrets.key'),
+        encryption_key=os.path.join(path, '..', 'secrets.key'),
         secrets_file=os.path.join(path, '..', 'esecrets.yaml'))
     controller.controller.start_process()
 
@@ -47,7 +61,8 @@ def cleanup():
 
 if __name__ == '__main__':
     log = log_.service.logger('main')
-    log_.service.set_log_level(log_.LogLevels.debug)
+    log_level = parse_arguments()
+    log_.service.set_log_level(log_level if log_level else log_.LogLevels.debug)
     while True:
         try:
             run()
