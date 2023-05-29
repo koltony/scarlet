@@ -94,12 +94,14 @@ class ConfigService:
     def __init__(self):
         self.config_file = None
         self.secrets = None
-        self.config_classes = self._collect_config_classes()
+        self.configured_components = list()
+        self.config_options = self._collect_config_options()
 
     def clear_all(self):
         self.config_file = None
         self.secrets = None
-        self.config_classes = self._collect_config_classes()
+        self.config_options = self._collect_config_options()
+        self.configured_components = list()
         Component.component_classes_by_name = dict()
 
     def load_secrets(self, encryption_key: str, encrypted_file: str):
@@ -127,14 +129,14 @@ class ConfigService:
             self._load_yaml_from_raw(raw_yaml)
 
     @staticmethod
-    def _collect_config_classes():
+    def _collect_config_options():
         config_option_types = ['ConfigOption']
         for config_class in ConfigOption.__subclasses__():
             config_option_types.append(config_class.__class__.__name__)
         return config_option_types
 
     def _is_config_option(self, member) -> bool:
-        for config_class in self.config_classes:
+        for config_class in self.config_options:
             if inspect.isfunction(member) and re.findall(r"<function\s+{}\.[a-zA-Z0-9]+\.<locals>\.<lambda>".format(re.escape(config_class)), str(member)):
                 return True
         return False
@@ -169,6 +171,7 @@ class ConfigService:
                     ValueError(f'{component} does not have attribute: {config_name}')
         if configureables:
             self._set_configure_defaults_for_component(component, configureables)
+        self.configured_components.append(component)
 
     def configure_components(self):
         for key, config in self.config_file.items():
@@ -179,14 +182,13 @@ class ConfigService:
             else:
                 ValueError(f'component: {key} does not exist')
 
-    @staticmethod
-    def initialize_components():
+    def initialize_components(self):
         for name, component in Component.component_classes_by_name.items():
-            if hasattr(component, 'initialize'):
+            if component in self.configured_components and hasattr(component, 'initialize'):
                 log.info(f'Initializing component: {name}')
                 component.initialize()
             else:
-                log.debug(f'Component {name} does not need to be initialied')
+                log.debug(f'Component {name} does not need to be initialized')
         log.info("All components have been initialized")
 
     def start_process(self, config_file: str, encryption_key: Optional[str] = None, secrets_file: Optional[str] = None):
