@@ -30,7 +30,6 @@ class MainController(config.Component):
         self.IrrigationController.schedule_jobs()
         self.DatabaseController.schedule_jobs()
         self.CleanupController.schedule_jobs()
-        breakpoint()
         while True:
             schedule.run_pending()
             time.sleep(0.01)
