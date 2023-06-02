@@ -97,10 +97,12 @@ class IrrigationPrograms(config.Component):
 
 
 class IrrigationData(cache.CachedObject):
-    def __init__(self, scheduled_time: str, irrigation_program: IrrigationProgram):
+    def __init__(self, scheduled_time: str, irrigation_program: IrrigationProgram, should_run: bool = True, is_normal_run: bool = True):
         super().__init__()
         self.scheduled_time = scheduled_time
         self.irrigation_program = irrigation_program
+        self.should_run = should_run
+        self.is_normal_run = is_normal_run
         self.is_started = False
 
 
@@ -118,7 +120,7 @@ class IrrigationController(config.Component):
 
     def check_irrigation_start(self):
         program = self.IrrigationControllerCache.retrieve_last_from_cache()  # type: Optional[IrrigationData]
-        if program and program.is_started is False:
+        if program and program.should_run is True and program.is_started is False:
             now = dt.datetime.now()
             log.debug("Checking irrigation start time")
             log.debug(f"Scheduled hour: {program.scheduled_time.split(':')[0]} now: {now.hour} is {int(program.scheduled_time.split(':')[0]) == now.hour} \n"
@@ -153,20 +155,17 @@ class IrrigationController(config.Component):
 
     def get_last_run(self) -> int:
         log.debug("Get last irrigation run")
-        today = dt.datetime.now()
-        run_dates = OrderedDict({1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False})
+        last_run = 7
         for name in self.IrrigationControllerCache.cache.iterkeys():
-            weather = self.IrrigationControllerCache.cache[name]
-            time_since = weather.timestamp.day - today.day
-            if time_since <= 7:
-                run_dates[time_since+1] = True
-        log.debug(f"Calculated run timeline: {run_dates}")
-        for name, item in run_dates.items():
-            if item is True:
-                log.debug(f"Irrigation system ran {name} day(s) ago")
-                return name
-        log.debug(f"Irrigation system ran 7 or more  day(s) ago")
-        return 7
+            irrigation_run = self.IrrigationControllerCache.cache[name]
+            if irrigation_run.should_run and irrigation_run.is_normal_run and irrigation_run.is_started:
+                days_since = (irrigation_run.timestamp - dt.datetime.now()).days
+                if irrigation_run.timestamp.seconds > 12 * 3600:
+                    days_since += 1
+                if days_since < last_run:
+                    last_run = days_since
+        log.debug(f"Irrigation system ran {last_run}  days ago")
+        return last_run
 
     @staticmethod
     def post_irrigation_run(program: IrrigationData):
@@ -175,7 +174,7 @@ class IrrigationController(config.Component):
                 'scheduled_time': program.scheduled_time
                 }
 
-        log.info("Posting average weather data to Database")
+        log.info("Posting Program data to Database")
         google_database.service.set_data(data=data, reference='/irrigation_run')
 
     def decide_irrigation(self):
@@ -199,8 +198,11 @@ class IrrigationController(config.Component):
                         self.IrrigationControllerCache.cache_data(irrigation_data)
                         self.post_irrigation_run(IrrigationData(f"{sunrise.hour}:{sunrise.minute}", p))
                         return
-                    log.info(f"Program not set because this program should only run every 2nd days, last run: {last_run}")
-            log.info("Program not set due to conditions")
+                    self.IrrigationControllerCache.cache_data(IrrigationData(f"6:00", p, False))
+                    log.info(f"Program should not run  because this  should only run every 2nd days, last run: {last_run}")
+                    return
+            log.info("No program should run because of conditions")
+            self.IrrigationControllerCache.cache_data(IrrigationData(f"6:00", self.Programs.DefaultProgram, False))
         else:
             log.warning("No weather score data available, using default program for next run")
             irrigation_data = IrrigationData(f"6:00", self.Programs.DefaultProgram)
@@ -259,14 +261,14 @@ class BlindsController(config.Component):
     def check_open_weather_conditions(self, weather: open_weather.Weather) -> bool:
         log.debug(f"Current time: {dt.datetime.now().hour} < {weather.sunset.hour}")
         if dt.datetime.now().hour < weather.sunset.hour:
-            log.debug(f"temp: {weather.temperature} > {self.temperature_limit} and wind: {weather.wind} < {self.wind_speed_limit}")
-            if weather.wind < self.wind_speed_limit and weather.temperature > self.temperature_limit:
+            log.debug(f"temp: {weather.temperature} > {self.temperature_limit} and wind: {weather.wind+5} < {self.wind_speed_limit}")
+            if weather.wind < (self.wind_speed_limit+5) and weather.temperature > self.temperature_limit:
                 log.debug(f"returning True for open weather conditions")
                 return True
         log.debug(f"returning False for open weather conditions")
         return False
 
-    def check_arduino_weather_conditions(self, weather: arduino_weather.AverageWeather) -> bool:
+    def check_arduino_weather_conditions(self, weather: arduino_weather.WeatherStatistics) -> bool:
         log.debug(f"Light levels({weather.light} > {self.light_limit} and wind speed: {weather.wind} < {self.wind_speed_limit}")
         if weather.light > self.light_limit and weather.wind < self.wind_speed_limit:
             log.debug(f"returning True for arduino weather conditions")
@@ -277,10 +279,11 @@ class BlindsController(config.Component):
     def check_conditions(self) -> Optional[bool]:
         open_weather_data = open_weather.service.get_weather_data()
         arduino_weather.service.get_weather_data()
+        log.debug(f"checking base conditions: {self.first_opening_time} < {dt.datetime.now().hour} < 21 ")
         if self.first_opening_time < dt.datetime.now().hour < 21:
             arduino_weather_data = arduino_weather.service.get_average_weather(dt.timedelta(minutes=30))
             if open_weather_data and arduino_weather_data:
-                log.info("Checking conditions based on arduino and open weather data")
+                log.info("checking conditions based on arduino and open weather data")
                 if self.check_arduino_weather_conditions(arduino_weather_data) and self.check_open_weather_conditions(open_weather_data):
                     return True
                 else:
@@ -290,16 +293,17 @@ class BlindsController(config.Component):
                 if self.check_open_weather_conditions(open_weather_data):
                     return True
             elif arduino_weather_data:
-                log.debug("Only arduino weather is checked")
+                log.warning("Only arduino weather is checked")
                 if self.check_arduino_weather_conditions(arduino_weather_data):
                     return True
             else:
                 log.warning("Issue with Open weather and arduino")
                 return None
-            return False
+        log.debug(f"not in operation times")
+        return False
 
     def decide_opening_and_closing(self):
-        log.debug("Deciding on opening and closing blinds")
+        log.info("Deciding on opening and closing blinds")
         conditions = self.check_conditions()
         if conditions is True:
             log.info(f"Opening blinds")
@@ -311,6 +315,8 @@ class BlindsController(config.Component):
             http_request.service.send_data(
                 '/blinds',
                 {'left_blind': 'up', 'right_blind': 'up'})
+        else:
+            log.error(f"Could not decide on opening or closing blinds")
 
 
 controller = MainController(name='MainController')
