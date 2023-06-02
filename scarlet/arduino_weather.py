@@ -12,7 +12,7 @@ log = log_.service.logger('ardu_weather')
 
 
 @dataclass
-class AverageWeather:
+class WeatherStatistics:
     span: dt.timedelta
     wind: float
     light: float
@@ -89,12 +89,14 @@ class ArduinoWeather(config.Component):
         log.warning("No available weather data from arduino")
         return None
 
-    def get_average_weather(self, timedelta: dt.timedelta) -> Optional[AverageWeather]:
-        log.debug(f'calculating average weather from {len(self.ArduinoWeatherCache.cache)} datapoints')
+    def retrieve_data_for_period(self, timedelta: dt.timedelta) -> Weather:
+        return self.ArduinoWeatherCache.retrieve_data_for_period(dt.datetime.now() - timedelta)  # type: Optional[List[Weather]]
+
+    def get_average_weather(self, timedelta: dt.timedelta) -> Optional[WeatherStatistics]:
         weathers = self.ArduinoWeatherCache.retrieve_data_for_period(
             dt.datetime.now() - timedelta)  # type: Optional[List[Weather]]
         if weathers:
-            average = AverageWeather(
+            average = WeatherStatistics(
                 span=timedelta,
                 light=statistics.mean([w.light for w in weathers if w is not None]),
                 wind=statistics.mean([w.wind for w in weathers if w is not None]))
@@ -102,14 +104,14 @@ class ArduinoWeather(config.Component):
             return average
         return None
 
-    def get_hourly_average_weather_for_last_day(self) -> Optional[Dict[int, AverageWeather]]:
+    def get_hourly_average_weather_for_last_day(self) -> Optional[Dict[int, WeatherStatistics]]:
         if len(self.ArduinoWeatherCache.cache) > 0:
             weathers = self.ArduinoWeatherCache.retrieve_hourly_data_for_day()  # type: Optional[Dict[int, List[Weather]]]
             averages_by_hour = dict()
             if weathers:
                 log.info(f'calculating hourly average weather')
                 for name, data in weathers.items():
-                    averages_by_hour[name] = AverageWeather(
+                    averages_by_hour[name] = WeatherStatistics(
                         span=dt.timedelta(hours=1),
                         light=statistics.mean([w.light for w in data if w is not None]),
                         wind=statistics.mean([w.wind for w in data if w is not None]))
