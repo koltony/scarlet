@@ -1,18 +1,15 @@
 import statistics
-import time
 import schedule
 import pandas as pd
-from collections import OrderedDict
 from typing import Optional, Dict, List
 import datetime as dt
 import os
 import open_weather
 import arduino_weather
-import google_database
-import config
+from scarlet.db import google_database
 import cache
 import http_request
-import log as log_
+from scarlet.core import log as log_, config
 
 log = log_.service.logger('controller')
 
@@ -30,9 +27,6 @@ class MainController(config.Component):
         self.IrrigationController.schedule_jobs()
         self.DatabaseController.schedule_jobs()
         self.CleanupController.schedule_jobs()
-        while True:
-            schedule.run_pending()
-            time.sleep(0.01)
 
 
 class CleanupController(config.Component):
@@ -133,7 +127,7 @@ class IrrigationController(config.Component):
     @staticmethod
     def calculate_score() -> Optional[float]:
         log.info("Calculating score for irrigation run")
-        df = pd.read_csv(filepath_or_buffer=os.path.join(os.path.dirname(os.path.realpath(__file__)), "resources", "vapour.csv"), header=0, index_col=0)
+        df = pd.read_csv(filepath_or_buffer=os.path.join(os.path.dirname(os.path.realpath(__file__)), "../resources", "vapour.csv"), header=0, index_col=0)
         open_weather_data = open_weather.service.get_hourly_average_weather_for_last_day()
         scores = list()
         if open_weather_data and not df.empty:
@@ -279,8 +273,8 @@ class BlindsController(config.Component):
     def check_conditions(self) -> Optional[bool]:
         open_weather_data = open_weather.service.get_weather_data()
         arduino_weather.service.get_weather_data()
-        log.debug(f"checking base conditions: {self.first_opening_time} < {dt.datetime.now().hour} < 21 ")
-        if self.first_opening_time < dt.datetime.now().hour < 21:
+        log.debug(f"checking base conditions: {self.first_opening_time} <= {dt.datetime.now().hour} < 21 ")
+        if self.first_opening_time <= dt.datetime.now().hour < 21:
             arduino_weather_data = arduino_weather.service.get_average_weather(dt.timedelta(minutes=30))
             if open_weather_data and arduino_weather_data:
                 log.info("checking conditions based on arduino and open weather data")

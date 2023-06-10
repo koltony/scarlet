@@ -3,8 +3,8 @@ from typing import Dict, Optional, Union, TextIO, Any
 from enum import Enum
 import re
 import inspect
-import file_encryption
-import log as log_
+import scarlet.core.file_encryption as file_encryption
+import scarlet.core.log as log_
 
 log = log_.service.logger('config')
 

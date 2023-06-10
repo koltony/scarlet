@@ -1,7 +1,6 @@
 import pytest
 import textwrap
-from scarlet import config
-from scarlet import log as log_
+from scarlet.core import log as log_, config
 
 log = log_.service.logger('test_config')
 
