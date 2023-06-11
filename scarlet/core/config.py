@@ -191,6 +191,13 @@ class ConfigService:
                 log.debug(f'Component {name} does not need to be initialized')
         log.info("All components have been initialized")
 
+    def schedule_jobs(self):
+        for name, component in Component.component_classes_by_name.items():
+            if component in self.configured_components and hasattr(component, 'schedule_jobs'):
+                log.info(f'Scheduling jobs for: {name}')
+                component.schedule_jobs()
+        log.info("All jobs have been scheduled")
+
     def start_process(self, config_file: str, encryption_key: Optional[str] = None, secrets_file: Optional[str] = None):
         if secrets_file and encryption_key:
             self.load_secrets(encryption_key=encryption_key, encrypted_file=secrets_file)
@@ -198,6 +205,7 @@ class ConfigService:
         self.load_config(config_file)
         self.configure_components()
         self.initialize_components()
+        self.schedule_jobs()
 
 
 class Component:

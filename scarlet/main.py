@@ -8,6 +8,8 @@ from scarlet.core import log as log_, config
 import scarlet.api.routes
 import scarlet.services.arduino_weather
 import scarlet.services.open_weather
+import scarlet.services.blinds
+import scarlet.services.irrigation
 
 
 def parse_arguments():

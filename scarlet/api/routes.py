@@ -1,17 +1,20 @@
 from fastapi import FastAPI
+
+import scarlet.core.log as log_
 import scarlet.api.schemas as schemas
 from scarlet.services.arduino_weather import service as arduino_service
 from scarlet.services.open_weather import service as open_weather_service
+from scarlet.services.irrigation import service as irrigation_service
+from scarlet.services.blinds import service as blinds_service
 
+log = log_.service.logger('routes')
 app = FastAPI()
 
 
 class Data:
     def __init__(self):
         self.server_data = {
-            '/weather': {'wind': 0, 'light': 0, 'rain': 0},
             '/blinds': {'left_blind': 'nostate', 'right_blind': 'nostate'},
-            '/irrigation': {'zone1': 0, 'zone2': 0, 'zone3': 0, 'zone_connected': 0, 'active': 'off'}
         }
 
 
@@ -25,7 +28,7 @@ async def root():
 
 @app.get("/weather")
 async def get_weather():
-    return arduino_service.get_last_data()
+    return arduino_service.get_weather_data()
 
 
 @app.post("/weather")
@@ -35,26 +38,22 @@ async def post_weather(item: schemas.ArduinoWeatherPydanticSchema):
 
 @app.get("/blinds")
 async def get_blinds():
-    return data.server_data["/blinds"]
+    return blinds_service.get_blinds()
 
 
 @app.post("/blinds")
 async def post_blinds(item: schemas.BlindsPydanticSchema):
-    item_dict = item.dict()
-    for name, value in item_dict.items():
-        data.server_data["/blinds"][name] = value
+    blinds_service.set_blinds(item)
 
 
 @app.get("/irrigation")
 async def get_irrigation():
-    return data.server_data["/irrigation"]
+    return irrigation_service.get_program()
 
 
 @app.post("/irrigation")
 async def post_irrigation(item: schemas.IrrigationPydanticSchema):
-    item_dict = item.dict()
-    for name, value in item_dict.items():
-        data.server_data["/irrigation"][name] = value
+    irrigation_service.set_program(item)
 
 
 @app.get("/open_weather")

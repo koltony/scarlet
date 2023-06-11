@@ -2,6 +2,9 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List
 import datetime as dt
+import scarlet.core.log as log_
+
+log = log_.service.logger('schemas')
 
 
 class BlindState(Enum):

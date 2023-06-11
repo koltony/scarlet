@@ -1,6 +1,9 @@
 from sqlalchemy import create_engine, ForeignKey, Column, String, Integer, DateTime, Float, Boolean
 from sqlalchemy.orm import sessionmaker, declarative_base
 import datetime as dt
+import scarlet.core.log as log_
+
+log = log_.service.logger("models")
 
 Base = declarative_base()
 
@@ -77,17 +80,34 @@ class OpenWeatherModel(Base):
 class IrrigationDataModel(Base):
     __tablename__ = 'irrigation_data'
 
-    scheduled_time = Column("ScheduledTime", DateTime, primary_key=True)
+    timestamp = Column('timestamp', DateTime, primary_key=True)
+    scheduled_time = Column("ScheduledTime", DateTime)
     should_run = Column("ShouldRun", Boolean)
     is_normal_run = Column("IsNormalRun", Boolean)
     is_started = Column("IsStarted", Boolean)
 
-    def __init__(self, scheduled_time: str,  should_run: bool = True, is_normal_run: bool = True, is_started: bool = False, *args, **kwargs):
+    def __init__(
+            self,
+            timestamp: dt.datetime,
+            scheduled_time: str,
+            should_run: bool = False,
+            is_normal_run: bool = False,
+            is_started: bool = False,
+            zone1: int = 0,
+            zone2: int = 0,
+            zone3: int = 0,
+            zone_connected: int = 0,
+            *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.timestamp = timestamp
         self.scheduled_time = scheduled_time
         self.should_run = should_run
         self.is_normal_run = is_normal_run
         self.is_started = is_started
+        self.zone1 = zone1,
+        self.zone2 = zone2,
+        self.zone3 = zone3,
+        self.zone_connected = zone_connected,
 
     def __repr__(self):
         return f"IrrigationData(" \

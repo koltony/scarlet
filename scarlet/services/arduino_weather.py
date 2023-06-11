@@ -67,12 +67,12 @@ class ArduinoWeather(config.Component):
             return weather
 
     @staticmethod
-    def get_last_data():
+    def get_weather_data():
         return db_service.get_last(ArduinoWeatherModel)
 
     @staticmethod
     def get_average_weather(timedelta: dt.timedelta) -> Optional[WeatherStatistics]:
-        weathers = db_service.session.query(ArduinoWeatherModel).filter(ArduinoWeatherModel.timestamp > dt.datetime.now()-timedelta)
+        weathers = db_service.session.query(ArduinoWeatherModel).filter(ArduinoWeatherModel.timestamp > dt.datetime.now()-timedelta).all()
         if weathers:
             average = WeatherStatistics(
                 span=timedelta,
