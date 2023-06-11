@@ -31,7 +31,6 @@ def run():
         config_file=os.path.join(path, '..', 'config.yaml'),
         encryption_key=os.path.join(path, '..', 'secrets.key'),
         secrets_file=os.path.join(path, '..', 'esecrets.yaml'))
-    #controller.controller.start_process()
     uvicorn.run(scarlet.api.routes.app, host="localhost", port=8000, loop='uvloop')
 
 
@@ -42,6 +41,8 @@ async def startup_event():
 
 
 async def run_schedule():
+    schedule.every().monday.at("02:00").do(log_.service.clear_log_file)
+    schedule.every().thursday.at("02:00").do(log_.service.clear_log_file)
     while True:
         schedule.run_pending()
         await asyncio.sleep(1)
