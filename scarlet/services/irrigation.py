@@ -4,10 +4,11 @@ import pandas as pd
 from typing import Optional, Dict, List
 import datetime as dt
 import os
+from sqlmodel import select
 
 from scarlet.core import log as log_, config
 import scarlet.services.open_weather as open_weather
-from scarlet.db.models import IrrigationDataModel
+from scarlet.db.models import IrrigationData
 from scarlet.db.db import service as db_service
 from scarlet.api.schemas import IrrigationPydanticSchema
 
@@ -48,7 +49,7 @@ class IrrigationController(config.Component):
         schedule.every().minute.do(self._check_irrigation_start)
 
     def _check_irrigation_start(self):
-        program = db_service.get_last(IrrigationDataModel)
+        program = db_service.get_last(IrrigationData)
         if program and program.should_run is True and program.is_started is False:
             now = dt.datetime.now()
             log.debug("Checking irrigation start time")
@@ -57,7 +58,7 @@ class IrrigationController(config.Component):
             if int(program.scheduled_time.split(':')[0]) == now.hour and int(program.scheduled_time.split(':')[1]) == now.minute:
                 log.info("Starting irrigation program")
                 program.is_started = True
-                self.set_program(IrrigationPydanticSchema(
+                self.run_program(IrrigationPydanticSchema(
                     zone1=program.zone1,
                     zone2=program.zone2,
                     zone3=program.zone3,
@@ -91,7 +92,7 @@ class IrrigationController(config.Component):
     def _get_last_run() -> int:
         log.debug("Get last irrigation run")
         last_run = 7
-        programs = db_service.session.query(IrrigationDataModel).filter(IrrigationDataModel.timestamp > dt.datetime.now() - dt.timedelta(days=7))
+        programs = db_service.session.exec(select(IrrigationData.timestamp > dt.datetime.now() - dt.timedelta(days=7))).all()
         if programs:
             for program in programs:
                 if program.should_run and program.is_normal_run and program.is_started:
@@ -119,7 +120,7 @@ class IrrigationController(config.Component):
                     if p.every_x_day <= last_run:
                         log.info(f"Using program: {name} in the next run")
                         sunrise = open_weather.service.get_weather_data().sunrise
-                        irrigation_data = IrrigationDataModel(
+                        irrigation_data = IrrigationData(
                             scheduled_time=f"{sunrise.hour}:{sunrise.minute}",
                             should_run=True,
                             is_normal_run=True,
@@ -129,7 +130,7 @@ class IrrigationController(config.Component):
                             zone_connected=p.zone_connected)
                         db_service.session.add(irrigation_data)
                         return
-                    irrigation_data = IrrigationDataModel(
+                    irrigation_data = IrrigationData(
                         scheduled_time=f"6:00",
                         should_run=False,
                         is_normal_run=True,
@@ -141,11 +142,11 @@ class IrrigationController(config.Component):
                     log.info(f"Program should not run  because this  should only run every 2nd days, last run: {last_run}")
                     return
             log.info("No program should run because of conditions")
-            irrigation_data = IrrigationDataModel(scheduled_time=f"6:00")
+            irrigation_data = IrrigationData(scheduled_time=f"6:00")
             db_service.session.add(irrigation_data)
         else:
             log.warning("No weather score data available, using default program for next run")
-            irrigation_data = IrrigationDataModel(
+            irrigation_data = IrrigationData(
                 scheduled_time="6:00",
                 should_run=True,
                 is_normal_run=True,
@@ -155,7 +156,7 @@ class IrrigationController(config.Component):
                 zone_connected=self.Programs.DefaultProgram.zone_connected)
             db_service.session.add(irrigation_data)
 
-    def set_program(self, program: IrrigationPydanticSchema):
+    def run_program(self, program: IrrigationPydanticSchema):
         self._irrigation_status = program.dict()
 
     def get_program(self):

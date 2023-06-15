@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 import scarlet.core.log as log_
 import scarlet.api.schemas as schemas
+import scarlet.db.models as models
 from scarlet.services.arduino_weather import service as arduino_service
 from scarlet.services.open_weather import service as open_weather_service
 from scarlet.services.irrigation import service as irrigation_service
@@ -32,7 +33,7 @@ async def get_weather():
 
 
 @app.post("/weather")
-async def post_weather(item: schemas.ArduinoWeatherPydanticSchema):
+async def post_weather(item: models.ArduinoWeatherData):
     arduino_service.save_weather_data(item)
 
 
@@ -53,7 +54,7 @@ async def get_irrigation():
 
 @app.post("/irrigation")
 async def post_irrigation(item: schemas.IrrigationPydanticSchema):
-    irrigation_service.set_program(item)
+    irrigation_service.run_program(item)
 
 
 @app.get("/open_weather")

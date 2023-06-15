@@ -4,11 +4,11 @@ import statistics
 from dataclasses import dataclass
 from typing import Optional, Dict
 from itertools import groupby
+from sqlmodel import select
 
 from scarlet.core import log as log_, config
 from scarlet.db.db import service as db_service
-from scarlet.db.models import OpenWeatherModel
-from scarlet.api.schemas import OpenWeatherPydanticSchema
+from scarlet.db.models import OpenWeatherData
 
 log = log_.service.logger('open_weather')
 
@@ -45,7 +45,7 @@ class OpenWeatherService(config.Component):
 
     @staticmethod
     def get_last_data():
-        return db_service.get_last(OpenWeatherModel)
+        return db_service.get_last(OpenWeatherData)
 
     def get_weather_data(self):
         weather = self.get_last_data()
@@ -53,7 +53,7 @@ class OpenWeatherService(config.Component):
             data = self.raw_data
             if data:
                 log.info(f'Retrieved Open weather data')
-                weather = OpenWeatherPydanticSchema(
+                weather = OpenWeatherData(
                     temperature=round(data['main']['temp'], 2),
                     wind=data['wind']['speed'],
                     clouds=data['clouds']['all'],
@@ -63,12 +63,12 @@ class OpenWeatherService(config.Component):
                     sunrise=dt.datetime.fromtimestamp(data['sys']['sunrise']),
                     sunset=dt.datetime.fromtimestamp(data['sys']['sunset']))
                 log.info(f"Open weather data: {weather}")
-                db_service.add(weather, OpenWeatherModel)
+                db_service.add(weather)
         return weather
 
     @staticmethod
     def get_average_weather(timedelta: dt.timedelta) -> Optional[WeatherStatistics]:
-        weathers = db_service.session.query(OpenWeatherModel).filter(OpenWeatherModel.timestamp > dt.datetime.now()-timedelta)
+        weathers = db_service.session.exec(select(OpenWeatherData.timestamp > dt.datetime.now()-timedelta))
         if weathers:
             average = WeatherStatistics(
                 span=timedelta,
@@ -83,7 +83,7 @@ class OpenWeatherService(config.Component):
 
     @staticmethod
     def get_hourly_average_weather_for_last_day() -> Optional[Dict[int, WeatherStatistics]]:
-        weathers = db_service.session.query(OpenWeatherModel).filter(OpenWeatherModel.timestamp > dt.datetime.now() - dt.timedelta(hours=24)).all()
+        weathers = db_service.session.exec(select(OpenWeatherData.timestamp > dt.datetime.now() - dt.timedelta(hours=24))).all()
         weathers_by_hour = {key: list(value) for key, value in groupby(weathers, key=lambda w: w.timestamp.hour)}
         if len(weathers_by_hour) > 0:
             averages_by_hour = dict()

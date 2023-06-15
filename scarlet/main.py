@@ -5,6 +5,8 @@ import uvicorn
 import asyncio
 
 from scarlet.core import log as log_, config
+import scarlet.db.db
+import scarlet.db.models
 import scarlet.api.routes
 import scarlet.services.arduino_weather
 import scarlet.services.open_weather
@@ -36,6 +38,8 @@ def run():
 
 @scarlet.api.routes.app.on_event("startup")
 async def startup_event():
+    log_.service.change_logger('uvicorn', log_.LogLevels.info)
+    log_.service.change_logger('uvicorn.error', log_.LogLevels.info)
     event_loop = asyncio.get_event_loop()
     event_loop.create_task(run_schedule())
 

@@ -1,33 +1,28 @@
-from sqlalchemy import create_engine, ForeignKey, Column, String, Integer, DateTime
-from sqlalchemy.orm import sessionmaker, declarative_base
-import sqlalchemy
-from pydantic import BaseModel
-import datetime as dt
-
-import scarlet.db.models as models
+from sqlmodel import Session, SQLModel, create_engine, select
+import logging
+import scarlet.db.models
 import scarlet.core.log as log_
 
 log = log_.service.logger("db")
-sqlalchemy.engine.base.Engine.logger = log
 
 
 class Database:
 
     def __init__(self):
         self.engine = create_engine('sqlite:///mydb.db', echo=False)
+        log_.service.change_logger('sqlalchemy.engine.Engine', log_.LogLevels.info)
+        log_.service.change_logger('sqlalchemy.orm.mapper.Mapper', log_.LogLevels.info)
+        SQLModel.metadata.create_all(bind=self.engine)
+        self.session = Session(self.engine)
 
-        models.Base.metadata.create_all(bind=self.engine)
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
+    def add(self, item: SQLModel):
+        self.session.add(item)
 
-    def add(self, item: BaseModel, model: models.Base):
-        model_items = item.dict()
-        model_items.update({'timestamp': dt.datetime.now()})
-        self.session.add(model(**model_items))
-        self.session.commit()
-
-    def get_last(self, model: models.Base):
-        return self.session.query(model).order_by(model.timestamp).first()
+    def get_last(self, model):
+        last = self.session.exec(select(model).order_by(model.timestamp)).first()
+        if not last:
+            log.warning(f"No data available, cannot get last")
+        return last
 
 
 service = Database()

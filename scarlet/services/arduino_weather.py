@@ -3,10 +3,10 @@ import datetime as dt
 from typing import Optional, Dict
 import statistics
 from itertools import groupby
+from sqlmodel import select
 
 from scarlet.core import log as log_, config
-from scarlet.api.schemas import ArduinoWeatherPydanticSchema
-from scarlet.db.models import ArduinoWeatherModel
+from scarlet.db.models import ArduinoWeatherData
 from scarlet.db.db import service as db_service
 
 log = log_.service.logger('ardu_weather')
@@ -48,7 +48,7 @@ class ArduinoWeather(config.Component):
     def _validate_wind_speed(wind: float) -> bool:
         if wind < 20:
             return True
-        historical_data = db_service.session.query(ArduinoWeatherModel).filter(ArduinoWeatherModel.timestamp > dt.datetime.now()-dt.timedelta(hours=1))
+        historical_data = db_service.session.exec(select(ArduinoWeatherData.timestamp > dt.datetime.now()-dt.timedelta(hours=1)))
         if historical_data:
             max_wind = 0
             for data in historical_data:
@@ -59,20 +59,20 @@ class ArduinoWeather(config.Component):
         log.warning(f"Wind speed of: {wind} km/hour is invalid")
         return False
 
-    def save_weather_data(self, weather: ArduinoWeatherPydanticSchema):
+    def save_weather_data(self, weather: ArduinoWeatherData):
         weather.wind = self._value_to_wind_speed(weather.wind)
         if self._validate_wind_speed(weather.wind):
             log.info(f"Got weather data from arduino : {weather}")
-            db_service.add(weather, ArduinoWeatherModel)
+            db_service.add(weather)
             return weather
 
     @staticmethod
     def get_weather_data():
-        return db_service.get_last(ArduinoWeatherModel)
+        return db_service.get_last(ArduinoWeatherData)
 
     @staticmethod
     def get_average_weather(timedelta: dt.timedelta) -> Optional[WeatherStatistics]:
-        weathers = db_service.session.query(ArduinoWeatherModel).filter(ArduinoWeatherModel.timestamp > dt.datetime.now()-timedelta).all()
+        weathers = db_service.session.exec(select(ArduinoWeatherData.timestamp > dt.datetime.now()-timedelta)).all()
         if weathers:
             average = WeatherStatistics(
                 span=timedelta,
@@ -84,7 +84,7 @@ class ArduinoWeather(config.Component):
 
     @staticmethod
     def get_hourly_average_weather_for_last_day() -> Optional[Dict[int, WeatherStatistics]]:
-        weathers = db_service.session.query(ArduinoWeatherModel).filter(ArduinoWeatherModel.timestamp > dt.datetime.now() - dt.timedelta(hours=24)).all()
+        weathers = db_service.session.exec(select(ArduinoWeatherData.timestamp > dt.datetime.now() - dt.timedelta(hours=24))).all()
         weathers_by_hour = {key: list(value) for key, value in groupby(weathers, key=lambda w: w.timestamp.hour)}
         if len(weathers_by_hour) > 0:
             averages_by_hour = dict()

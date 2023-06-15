@@ -18,23 +18,6 @@ class IrrigationState(Enum):
     nostate = 'nostate'
 
 
-class ArduinoWeatherPydanticSchema(BaseModel):
-    wind: int
-    light: int
-    rain: int
-
-
-class OpenWeatherPydanticSchema(BaseModel):
-    temperature: float
-    wind: float
-    clouds: float
-    pressure: float
-    humidity: float
-    timezone: int
-    sunrise: dt.datetime
-    sunset: dt.datetime
-
-
 class BlindsPydanticSchema(BaseModel):
     left_blind: BlindState
     right_blind: BlindState
