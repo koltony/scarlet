@@ -4,6 +4,7 @@ from typing import Optional, Dict
 import statistics
 from itertools import groupby
 from sqlmodel import select
+import schedule
 
 from scarlet.core import log as log_, config
 from scarlet.db.models import ArduinoWeatherData
@@ -27,6 +28,14 @@ class ArduinoWeather(config.Component):
         self.anemometer_max_meter_per_sec = config.ConfigOption(required=True).float  # type: float
         self.arduino_max_milli_input_voltage = config.ConfigOption(required=True).integer  # type: int
         self.arduino_input_resolution = config.ConfigOption(required=True).integer  # type: int
+        self.days_of_keeping_data = config.ConfigOption(required=True).integer  # type: int
+
+    def schedule_jobs(self):
+        log.debug("scheduling blinds related jobs")
+        schedule.every().day.do(self._clear_data)
+
+    def _clear_data(self):
+        db_service.clear_old_data(ArduinoWeatherData, dt.datetime.now() - dt.timedelta(days=self.days_of_keeping_data))
 
     def _value_to_wind_speed(self, value) -> float:
         """"Converts arduino analog read value to actual wind speed"""
@@ -88,7 +97,7 @@ class ArduinoWeather(config.Component):
         weathers_by_hour = {key: list(value) for key, value in groupby(weathers, key=lambda w: w.timestamp.hour)}
         if len(weathers_by_hour) > 0:
             averages_by_hour = dict()
-            log.info(f'calculating hourly average weather')
+            log.info('calculating hourly average weather')
             for name, data in weathers_by_hour.items():
                 averages_by_hour[name] = WeatherStatistics(
                     span=dt.timedelta(hours=1),

@@ -30,8 +30,8 @@ class OpenWeatherData(SQLModel, table=True):
 class IrrigationData(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     timestamp: dt.datetime = Field(default=dt.datetime.now())
-    scheduled_time: str
-    should_run: bool = False
+    scheduled_time: dt.datetime
+    should_run: bool = True
     is_normal_run: bool = False
     is_started: bool = False
     zone1: int = 0

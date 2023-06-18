@@ -6,6 +6,7 @@ import asyncio
 
 from scarlet.core import log as log_, config
 import scarlet.db.db
+import scarlet.db.google_database
 import scarlet.db.models
 import scarlet.api.routes
 import scarlet.services.arduino_weather
@@ -57,4 +58,3 @@ if __name__ == '__main__':
     log_level = parse_arguments()
     log_.service.set_log_level(log_level if log_level else log_.LogLevels.debug)
     run()
-

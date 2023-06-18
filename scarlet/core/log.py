@@ -59,7 +59,7 @@ class Log:
     def change_logger(self, name: str, level: LogLevels):
         if name in logging.root.manager.loggerDict.keys():
             logging.root.manager.loggerDict[name] = self.logger(name)
-            self.set_log_level(level=level)
+            self.set_log_levels_for_modules({name: level})
 
     @staticmethod
     def list_loggers() -> Dict[str, logging.Logger]:
