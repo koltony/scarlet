@@ -3,8 +3,9 @@ from typing import Dict, Optional, Union, TextIO, Any
 from enum import Enum
 import re
 import inspect
-import file_encryption
-import log as log_
+
+import core.file_encryption as file_encryption
+import core.log as log_
 
 log = log_.service.logger('config')
 
@@ -19,7 +20,7 @@ class ConfigType(Enum):
 
 
 class ConfigOption:
-    def __init__(self, required: bool = False, default: Any = None, *args, **kwargs):
+    def __init__(self, required: bool = False, default: Any = None):
         self.name = None
         self.value = None
         self.default = default
@@ -105,7 +106,7 @@ class ConfigService:
         Component.component_classes_by_name = dict()
 
     def load_secrets(self, encryption_key: str, encrypted_file: str):
-        log.debug(f"loading secrets file")
+        log.debug("loading secrets file")
         self.secrets = file_encryption.Secrets.decrypt_file(encryption_key=encryption_key, encrypted_file=encrypted_file)
 
     def _load_yaml_from_raw(self, stream: Union[str, TextIO]):
@@ -121,7 +122,7 @@ class ConfigService:
 
     def load_config(self, path: str = None, raw_yaml: str = None):
         if (path and raw_yaml) or (not path and not raw_yaml):
-            raise ValueError(f"path or raw_yaml have to be specified but not both")
+            raise ValueError("path or raw_yaml have to be specified but not both")
 
         if path:
             self._load_yaml_from_file(path)
@@ -166,9 +167,9 @@ class ConfigService:
                         setattr(component, config_name, getattr(component, config_name)(config_name, config, component.name))
                         configureables.remove(config_name)
                     else:
-                        ValueError(f"{component.name}.{config_name} is not configurable")
+                        raise ValueError(f"{component.name}.{config_name} is not configurable")
                 else:
-                    ValueError(f'{component} does not have attribute: {config_name}')
+                    raise ValueError(f'{component} does not have attribute: {config_name}')
         if configureables:
             self._set_configure_defaults_for_component(component, configureables)
         self.configured_components.append(component)
@@ -180,7 +181,7 @@ class ConfigService:
             if component:
                 self.configure_component(component, config)
             else:
-                ValueError(f'component: {key} does not exist')
+                raise ValueError(f'component: "{key}" does not exist, existing components: {Component.component_classes_by_name.keys()}')
 
     def initialize_components(self):
         for name, component in Component.component_classes_by_name.items():
@@ -191,6 +192,13 @@ class ConfigService:
                 log.debug(f'Component {name} does not need to be initialized')
         log.info("All components have been initialized")
 
+    def schedule_jobs(self):
+        for name, component in Component.component_classes_by_name.items():
+            if component in self.configured_components and hasattr(component, 'schedule_jobs'):
+                log.info(f'Scheduling jobs for: {name}')
+                component.schedule_jobs()
+        log.info("All jobs have been scheduled")
+
     def start_process(self, config_file: str, encryption_key: Optional[str] = None, secrets_file: Optional[str] = None):
         if secrets_file and encryption_key:
             self.load_secrets(encryption_key=encryption_key, encrypted_file=secrets_file)
@@ -198,6 +206,7 @@ class ConfigService:
         self.load_config(config_file)
         self.configure_components()
         self.initialize_components()
+        self.schedule_jobs()
 
 
 class Component:
@@ -212,7 +221,8 @@ class Component:
         log.debug(f'registering component: {name}')
         if self.component_classes_by_name.get(name) is None:
             self.component_classes_by_name.update({name: self})
-        ValueError(f"Component with name {name} already exists")
+        else:
+            raise ValueError(f"Component with name {name} already exists")
 
 
 service = ConfigService()

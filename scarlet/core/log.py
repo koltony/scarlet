@@ -18,7 +18,7 @@ class LogLevels(Enum):
 class Log:
 
     def __init__(self):
-        self.filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'logs.log')
+        self.filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..', 'logs.log')
         self.console_output_handler = logging.StreamHandler(stream=sys.stdout)
         self.file_output_handler = logging.FileHandler(filename=self.filename)
         self.set_console_format()
@@ -47,7 +47,7 @@ class Log:
         file_formatter = logging.Formatter(fmt='[ %(asctime)s ] |%(levelname)-5s| %(filename)-18s line: %(lineno)-3d %(message)s')
         self.file_output_handler.setFormatter(file_formatter)
 
-    def logger(self, name):
+    def logger(self, name) -> logging.Logger:
         logging.basicConfig()
         logger = logging.getLogger(name)
         coloredlogs.install(logger=logger)
@@ -55,6 +55,11 @@ class Log:
         logger.addHandler(hdlr=self.console_output_handler)
         logger.addHandler(hdlr=self.file_output_handler)
         return logger
+
+    def change_logger(self, name: str, level: LogLevels):
+        if name in logging.root.manager.loggerDict.keys():
+            logging.root.manager.loggerDict[name] = self.logger(name)
+            self.set_log_levels_for_modules({name: level})
 
     @staticmethod
     def list_loggers() -> Dict[str, logging.Logger]:

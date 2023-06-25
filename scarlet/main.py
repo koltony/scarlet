@@ -1,18 +1,21 @@
 import os
-import time
-import importlib
-import traceback
+import sys
 import schedule
 import argparse
+import uvicorn
+import asyncio
 
-import log as log_
-import file_encryption
-import config
-import cache
-import open_weather
-import arduino_weather
-import google_database
-import controller
+
+import core.log as log_
+import core.config as config
+import db.models
+import db.db
+import db.google_database
+import api.routes
+import services.arduino_weather
+import services.open_weather
+import services.blinds
+import services.irrigation
 
 
 def parse_arguments():
@@ -34,40 +37,27 @@ def run():
         config_file=os.path.join(path, '..', 'config.yaml'),
         encryption_key=os.path.join(path, '..', 'secrets.key'),
         secrets_file=os.path.join(path, '..', 'esecrets.yaml'))
-    controller.controller.start_process()
+    uvicorn.run(api.routes.app, host="localhost", port=8000, loop='uvloop')
 
 
-def reload_modules():
-    log.info(f"reloading modules")
-    importlib.reload(file_encryption)
-    importlib.reload(config)
-    importlib.reload(cache)
-    importlib.reload(open_weather)
-    importlib.reload(arduino_weather)
-    importlib.reload(google_database)
-    importlib.reload(controller)
+@api.routes.app.on_event("startup")
+async def startup_event():
+    log_.service.change_logger('uvicorn', log_.LogLevels.info)
+    log_.service.change_logger('uvicorn.error', log_.LogLevels.info)
+    event_loop = asyncio.get_event_loop()
+    event_loop.create_task(run_schedule())
 
 
-def cleanup():
-    try:
-        log.info("Starting cleanup procedures")
-        google_database.service.close_connection()
-        log.info("removing schedules")
-        schedule.clear()
-        reload_modules()
-    except Exception as e:
-        log.error(f"cleanup procedure failed: {traceback.format_exc()}")
+async def run_schedule():
+    schedule.every().monday.at("02:00").do(log_.service.clear_log_file)
+    schedule.every().thursday.at("02:00").do(log_.service.clear_log_file)
+    while True:
+        schedule.run_pending()
+        await asyncio.sleep(1)
 
 
 if __name__ == '__main__':
     log = log_.service.logger('main')
     log_level = parse_arguments()
     log_.service.set_log_level(log_level if log_level else log_.LogLevels.debug)
-    while True:
-        try:
-            run()
-        except Exception as e:
-            log.error(f"Critical error: {traceback.format_exc()}")
-            cleanup()
-            time.sleep(60)
-
+    run()
