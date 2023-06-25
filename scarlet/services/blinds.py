@@ -64,9 +64,9 @@ class BlindsController(config.Component):
         return light_intensity / exp(-(diff - center) ** 2 / (2 * spread ** 2))
 
     def check_arduino_weather_conditions(self, weather: arduino_weather.WeatherStatistics) -> bool:
-        adjusted_light_limit = self._adjust_light_intensity(weather.light)
-        log.debug(f"Light levels({weather.light} > {self.light_limit}adj[{adjusted_light_limit}] and wind speed: {weather.wind} < {self.wind_speed_limit}")
-        if weather.light > adjusted_light_limit and weather.wind < self.wind_speed_limit:
+        adjusted_light = self._adjust_light_intensity(weather.light)
+        log.debug(f"Light levels({weather.light}adj[{adjusted_light}] > {self.light_limit} and wind speed: {weather.wind} < {self.wind_speed_limit}")
+        if adjusted_light > self.light_limit and weather.wind < self.wind_speed_limit:
             log.debug("returning True for arduino weather conditions")
             return True
         log.debug("returning False for arduino weather conditions")

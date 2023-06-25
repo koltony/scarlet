@@ -4,10 +4,11 @@ import argparse
 import uvicorn
 import asyncio
 
-from scarlet.core import log as log_, config
+import scarlet.core.log as log_
+import scarlet.core.config as config
+import scarlet.db.models
 import scarlet.db.db
 import scarlet.db.google_database
-import scarlet.db.models
 import scarlet.api.routes
 import scarlet.services.arduino_weather
 import scarlet.services.open_weather
