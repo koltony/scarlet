@@ -2,7 +2,7 @@ import firebase_admin
 from firebase_admin import credentials, db, App
 from typing import Optional, Dict
 import traceback
-from scarlet.core import log as log_, config
+from core import log as log_, config
 
 log = log_.service.logger('google_database')
 

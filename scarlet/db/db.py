@@ -2,8 +2,8 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from typing import Optional
 import datetime as dt
 
-import scarlet.core.log as log_
-import scarlet.core.config as config
+import core.log as log_
+import core.config as config
 
 log = log_.service.logger("db")
 

@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 
-import scarlet.core.log as log_
-import scarlet.api.schemas as schemas
-import scarlet.db.models as models
-from scarlet.services.arduino_weather import service as arduino_service
-from scarlet.services.open_weather import service as open_weather_service
-from scarlet.services.irrigation import service as irrigation_service
-from scarlet.services.blinds import service as blinds_service
+import core.log as log_
+import api.schemas as schemas
+import db.models as models
+from services.arduino_weather import service as arduino_service
+from services.open_weather import service as open_weather_service
+from services.irrigation import service as irrigation_service
+from services.blinds import service as blinds_service
 
 log = log_.service.logger('routes')
 app = FastAPI()

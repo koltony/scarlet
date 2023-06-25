@@ -3,10 +3,10 @@ from typing import Optional
 import datetime as dt
 from math import exp
 
-from scarlet.core import log as log_, config
-import scarlet.services.open_weather as open_weather
-import scarlet.services.arduino_weather as arduino_weather
-from scarlet.api.schemas import BlindsPydanticSchema
+from core import log as log_, config
+import services.open_weather as open_weather
+import services.arduino_weather as arduino_weather
+from api.schemas import BlindsPydanticSchema
 
 log = log_.service.logger('blinds')
 
@@ -51,9 +51,8 @@ class BlindsController(config.Component):
         return False
 
     @staticmethod
-    def _adjust_light_intensity(light_intensity: float) -> float:
+    def _adjust_light_intensity(light_intensity: float, now: dt.datetime = dt.datetime.now()) -> float:
         """"Light intensity during the day change a lot and in the late afternoon shading is still needed but the light intensity is much less"""
-        now = dt.datetime.now()
         noon = now.replace(hour=12, minute=0)
         center = 0
         spread = 10

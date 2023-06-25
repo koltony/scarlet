@@ -1,19 +1,21 @@
 import os
+import sys
 import schedule
 import argparse
 import uvicorn
 import asyncio
 
-import scarlet.core.log as log_
-import scarlet.core.config as config
-import scarlet.db.models
-import scarlet.db.db
-import scarlet.db.google_database
-import scarlet.api.routes
-import scarlet.services.arduino_weather
-import scarlet.services.open_weather
-import scarlet.services.blinds
-import scarlet.services.irrigation
+
+import core.log as log_
+import core.config as config
+import db.models
+import db.db
+import db.google_database
+import api.routes
+import services.arduino_weather
+import services.open_weather
+import services.blinds
+import services.irrigation
 
 
 def parse_arguments():
@@ -35,10 +37,10 @@ def run():
         config_file=os.path.join(path, '..', 'config.yaml'),
         encryption_key=os.path.join(path, '..', 'secrets.key'),
         secrets_file=os.path.join(path, '..', 'esecrets.yaml'))
-    uvicorn.run(scarlet.api.routes.app, host="localhost", port=8000, loop='uvloop')
+    uvicorn.run(api.routes.app, host="localhost", port=8000, loop='uvloop')
 
 
-@scarlet.api.routes.app.on_event("startup")
+@api.routes.app.on_event("startup")
 async def startup_event():
     log_.service.change_logger('uvicorn', log_.LogLevels.info)
     log_.service.change_logger('uvicorn.error', log_.LogLevels.info)

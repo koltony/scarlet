@@ -1,5 +1,5 @@
 import datetime as dt
-import scarlet.core.log as log_
+import core.log as log_
 from typing import Optional
 from sqlmodel import Session, SQLModel, create_engine, select, Field
 

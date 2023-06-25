@@ -7,9 +7,9 @@ from itertools import groupby
 from sqlmodel import select
 import schedule
 
-from scarlet.core import log as log_, config
-from scarlet.db.db import service as db_service
-from scarlet.db.models import OpenWeatherData
+from core import log as log_, config
+from db.db import service as db_service
+from db.models import OpenWeatherData
 
 log = log_.service.logger('open_weather')
 

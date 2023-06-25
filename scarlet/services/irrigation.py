@@ -6,11 +6,11 @@ import datetime as dt
 import os
 from sqlmodel import select
 
-from scarlet.core import log as log_, config
-import scarlet.services.open_weather as open_weather
-from scarlet.db.models import IrrigationData
-from scarlet.db.db import service as db_service
-from scarlet.api.schemas import IrrigationPydanticSchema
+from core import log as log_, config
+import services.open_weather as open_weather
+from db.models import IrrigationData
+from db.db import service as db_service
+from api.schemas import IrrigationPydanticSchema
 
 log = log_.service.logger('irrigation')
 
@@ -83,8 +83,7 @@ class IrrigationController(config.Component):
                     temperature = 6
                 if temperature > 35:
                     temperature = 35
-                humidity = 5 * round(data.humidity / 5)
-                VPD = df.at[temperature, str(humidity)]
+                VPD = df.at[temperature, str(round(data.humidity))]
                 scores.append(VPD + (0.03 * data.wind))
             log.debug(f"Calculating average score based on {scores}")
             score = statistics.mean(scores)

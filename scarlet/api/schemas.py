@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from enum import Enum
 import datetime as dt
-import scarlet.core.log as log_
+import core.log as log_
 
 log = log_.service.logger('schemas')
 
