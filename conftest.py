@@ -3,7 +3,7 @@ import sys
 import os
 
 # add the directory containing your project to the sys.path list
-project_dir = os.path.abspath('../scarlet')
+project_dir = os.path.abspath('scarlet')
 sys.path.append(project_dir)
 
 
