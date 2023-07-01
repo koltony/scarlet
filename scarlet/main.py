@@ -37,7 +37,7 @@ def run():
         config_file=os.path.join(path, '..', 'config.yaml'),
         encryption_key=os.path.join(path, '..', 'secrets.key'),
         secrets_file=os.path.join(path, '..', 'esecrets.yaml'))
-    uvicorn.run(api.routes.app, host="localhost", port=8000, loop='uvloop')
+    uvicorn.run(api.routes.app, host="0.0.0.0", port=8000, loop='uvloop')
 
 
 @api.routes.app.on_event("startup")
