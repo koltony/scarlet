@@ -78,7 +78,7 @@ class OpenWeatherService(config.Component):
 
     @staticmethod
     def get_average_weather(timedelta: dt.timedelta) -> Optional[WeatherStatistics]:
-        weathers = db_service.session.exec(select(OpenWeatherData.timestamp > dt.datetime.now()-timedelta))
+        weathers = db_service.session.exec(select(OpenWeatherData).where(OpenWeatherData.timestamp > dt.datetime.now()-timedelta)).all()
         if weathers:
             average = WeatherStatistics(
                 span=timedelta,
@@ -93,7 +93,7 @@ class OpenWeatherService(config.Component):
 
     @staticmethod
     def get_hourly_average_weather_for_last_day() -> Optional[Dict[int, WeatherStatistics]]:
-        weathers = db_service.session.exec(select(OpenWeatherData.timestamp > dt.datetime.now() - dt.timedelta(hours=24))).all()
+        weathers = db_service.session.exec(select(OpenWeatherData).where(OpenWeatherData.timestamp > dt.datetime.now() - dt.timedelta(hours=24))).all()
         weathers_by_hour = {key: list(value) for key, value in groupby(weathers, key=lambda w: w.timestamp.hour)}
         if len(weathers_by_hour) > 0:
             averages_by_hour = dict()

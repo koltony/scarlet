@@ -10,7 +10,6 @@ import core.log as log_
 import core.config as config
 import db.models
 import db.db
-import db.google_database
 import api.routes
 import services.arduino_weather
 import services.open_weather
@@ -37,7 +36,7 @@ def run():
         config_file=os.path.join(path, '..', 'config.yaml'),
         encryption_key=os.path.join(path, '..', 'secrets.key'),
         secrets_file=os.path.join(path, '..', 'esecrets.yaml'))
-    uvicorn.run(api.routes.app, host="localhost", port=8000, loop='uvloop')
+    uvicorn.run(api.routes.app, host="scarlet.local", port=8000, loop='uvloop')
 
 
 @api.routes.app.on_event("startup")

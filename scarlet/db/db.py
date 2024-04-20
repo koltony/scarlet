@@ -29,6 +29,7 @@ class Database(config.Component):
 
     def add(self, item: SQLModel):
         self.session.add(item)
+        self.session.commit()
 
     def get_last(self, model):
         last = self.session.exec(select(model).order_by(model.timestamp)).first()
