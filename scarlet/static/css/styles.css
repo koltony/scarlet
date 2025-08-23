@@ -1,0 +1,90 @@
+body { font-family: sans-serif; margin: 20px; }
+header { background: #ffffff; padding: 10px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #ccc; padding: 6px; }
+
+.navbar-style {
+    list-style-type: none;
+    border-radius: 20;
+    background-color: #333;  
+    margin: 0;
+    padding-bottom: 20px;
+    padding-top: 20px;
+    display: flex;     
+    gap: 30px;             
+}
+
+.navbar-style li a {
+    text-decoration: none;    
+    color: #b1b1b1;              
+    font-weight: bold;
+}
+
+.table-style table {
+    border: 2px solid #333;
+    border-radius: 20px;
+    overflow: hidden;  
+}
+
+.table-style input,
+.table-style select {
+  width: 100%;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+#add-sessions-container input {
+  margin-bottom: 4px;
+}
+
+.table-style input,
+.table-style select,
+.table-style button {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px;
+  font-size: 0.9em;
+}
+
+.table-style th {
+    background-color: #333;
+    border-color: #333;
+    color: #b1b1b1;             
+    font-weight: bold;
+}
+
+.table-style td {
+    padding: 12px 16px;
+    border: 1px solid #ccc;
+}
+
+#add-form-container {
+  background-color: #f0f8ff;
+  padding: 10px;
+  border-top: 1px solid #ccc;
+}
+
+#programs-body tr input,
+#programs-body tr select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+.session-table {
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+
+.session-table th,
+.session-table td {
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.session-row td {
+  background-color: #f6faff;
+  padding: 10px;
+}

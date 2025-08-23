@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <ul class="navbar-style">
+            <li><a href="/irrigation/ui">Irrigation</a></li>
+            <li><a href="/blinds/ui">Blinds</a></li>
+        </ul>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

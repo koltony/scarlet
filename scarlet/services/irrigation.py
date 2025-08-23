@@ -1,124 +1,116 @@
-import statistics
-import schedule
-import pandas as pd
-from typing import Optional, Dict, List
-import datetime as dt
 import os
-from sqlmodel import select
+import datetime as dt
+import schedule
+from sqlmodel import select, delete
+import polars as pl
 
-from core import log as log_, config
-import services.open_weather as open_weather
-from db.models import IrrigationData
-from db.db import service as db_service
-from api.schemas import IrrigationPydanticSchema
+from scarlet.core import log as log_, config
+from scarlet.services import open_weather, arduino_weather
+from scarlet.db.models import IrrigationSession, IrrigationProgram, IrrigationProgramSession
+from scarlet.db.db import service as db_service
+from scarlet.api.schemas import IrrigationPydanticSchema
 
 log = log_.service.logger('irrigation')
 
 
-class IrrigationProgram(config.Component):
-    def __init__(self, name):
-        super().__init__(name=name)
-        self.scores = config.ConfigOption(required=True).list  # type: Optional[List[int]]
-        self.zone1 = config.ConfigOption(required=True).integer  # type: int
-        self.zone2 = config.ConfigOption(required=True).integer  # type: int
-        self.zone3 = config.ConfigOption(required=True).integer  # type: int
-        self.zone_connected = config.ConfigOption(required=True).integer  # type: int
-        self.every_x_day = config.ConfigOption(required=True).integer  # type: int
-
-    def __str__(self):
-        return f"{self.name}(scores: {self.scores})"
-
-
-class IrrigationPrograms(config.Component):
-    def __init__(self, name):
-        super().__init__(name=name)
-        self.Program_1 = IrrigationProgram("Program_1")
-        self.Program_2 = IrrigationProgram("Program_2")
-        self.Program_3 = IrrigationProgram("Program_3")
-        self.Program_4 = IrrigationProgram("Program_4")
-        self.programs = [self.Program_1, self.Program_2, self.Program_3, self.Program_4]
-
-
-class IrrigationController(config.Component):
-
-    def __init__(self, name):
-        super().__init__(name=name)
-        self.Programs = IrrigationPrograms("Programs")
-        self.days_of_keeping_data = config.ConfigOption(required=True).integer  # type: int
-        self._irrigation_status = {'zone1': 0, 'zone2': 0, 'zone3': 0, 'zone_connected': 0, 'active': 'off'}
+class IrrigationController(config.Controller):
+    _irrigation_status: dict[str, str | int] = {'zone1': 0, 'zone2': 0, 'zone3': 0, 'zone_connected': 0, 'active': 'off'}
+    _scheduled_sessions: list[IrrigationProgramSession] = list()
+    _scheduled_jobs: list[schedule.Job] = list()
+    automation: bool
 
     def schedule_jobs(self):
         log.debug("Scheduling Irrigation jobs")
-        schedule.every().day.at("06:30").do(self.decide_irrigation)
-        schedule.every().day.do(self._clear_data)
-
-    def _clear_data(self):
-        db_service.clear_old_data(IrrigationData, dt.datetime.now() - dt.timedelta(days=self.days_of_keeping_data))
+        if self.automation: 
+            self._scheduled_jobs.append(schedule.every().day.at("03:30").do(self.scheduling_programs))
 
     @staticmethod
     def calculate_score() -> float:
         log.info("Calculating score for irrigation run")
-        df = pd.read_csv(filepath_or_buffer=os.path.join(os.path.dirname(os.path.realpath(__file__)), "../resources", "vapour.csv"), header=0, index_col=0)
-        open_weather_data = open_weather.service.get_hourly_average_weather_for_last_day()
-        scores = list()
-        for name, data in open_weather_data.items():
-            temperature = int(data.temperature)
-            humidity = int(data.humidity/5) * 5
-            if temperature < 6:
-                temperature = 6
-            if temperature > 35:
-                temperature = 35
-            VPD = df.at[temperature, str(humidity)]
-            scores.append(VPD + (0.03 * data.wind))
-        log.debug(f"Calculating average score based on {scores}")
-        score = statistics.mean(scores)
+        vapour_df = pl.read_csv(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../resources", "vapour.csv")).unpivot(index="C", variable_name="humidity", value_name="VPD").with_columns([pl.col("humidity").cast(pl.Int32)])
+        weather_df = pl.from_dicts([data.model_dump() for data in open_weather.service.get_history(dt.datetime.now())])
+        weather_df = weather_df.with_columns(pl.col('temperature_2m').cast(pl.Int16).clip(lower_bound=6, upper_bound=35), ((pl.col('relative_humidity_2m') / 5).cast(pl.Int16) * 5).clip(lower_bound=5))
+        weather_df = vapour_df.join(weather_df, left_on='C', right_on='temperature_2m')[['VPD', 'wind_speed_10m']]
+        weather_df.with_columns((pl.col('VPD') + (pl.col('wind_speed_10m') * 0.03)).alias('score'))
+        log.debug(f"Calculating average score based on {weather_df['score']}")
+        score = weather_df['score'].mean()
         log.debug(f"Calculated score: {score}")
         return score
 
-    @staticmethod
-    def _get_last_run() -> int:
-        log.debug("Get last irrigation run")
-        last_run = 7
-        programs = db_service.session.exec(select(IrrigationData.timestamp > dt.datetime.now() - dt.timedelta(days=7))).all()
-        if programs:
-            for program in programs:
-                if program.should_run and program.is_normal_run and program.is_started:
-                    days_since = (program.timestamp - dt.datetime.now()).days
-                    if program.timestamp.seconds > 12 * 3600:
-                        days_since += 1
-                    if days_since < last_run:
-                        last_run = days_since
-            log.debug(f"Irrigation system ran {last_run}  days ago")
-        return last_run
-
-    def decide_irrigation(self):
-        log.info("Making decision of irrigation run")
+    def scheduling_programs(self):
+        log.info("making decision of irrigation run")
         score = self.calculate_score()
-        last_program: IrrigationData = db_service.get_last(IrrigationData)
-        for program in self.Programs.programs:
-            if program.scores[0] < score < program.scores[1] and (last_program is None or (dt.datetime.now() - last_program.timestamp) >= (dt.timedelta(hours=23, minutes=50) * program.every_x_day)):
-                irrigation_data = IrrigationData(
-                    zone1=program.zone1,
-                    zone2=program.zone2,
-                    zone3=program.zone3,
-                    zone_connected=program.zone_connected)
-                db_service.add(irrigation_data)
-                self.run_program(IrrigationPydanticSchema(
-                    zone1=program.zone1,
-                    zone2=program.zone2,
-                    zone3=program.zone3,
-                    zone_connected=program.zone_connected,
-                    active='on'))
-                log.info(f"using program: {program.name} [{program}] for run")
-                return
-        log.info(f"no program will run because of conditions, score: {score} and day diff: {(dt.datetime.now() - last_program.timestamp)}")
+        last_session: IrrigationSession = db_service.get_last(IrrigationSession)
+        log.debug(f"last_session: {last_session}")
+        programs = db_service.session.exec(select(IrrigationProgram).where(IrrigationProgram.is_active is True)).all()
+        log.debug("retreived programs: {programs}")
 
-    def run_program(self, program: IrrigationPydanticSchema):
-        log.info(f"started irrigation wit {program}")
-        self._irrigation_status = program.dict()
+        self._scheduled_sessions = list()
+        scheduled_programs: list[IrrigationProgram] = list()
+        for program in programs:
+            if program.lower_score < score < program.upper_score: 
+                if last_session is None or (((last_session.timestamp - dt.datetime(last_session.timestamp.year,1,1,0)).days >= program.frequency)):
+                    scheduled_programs.append(program)
+                    for session in program.sessions:
+                        scheduled = schedule.every().day.at(session.start_time.strftime("%H:%M")).do(self.run_scheduled_session, session=session)
+                        scheduled.cancel_after(dt.datetime(dt.date.today().year, dt.date.today().month, dt.date.today().day,  session.start_time.hour + 1))
+                        log.debug(f"scheduled session: {scheduled}")
+                        self._scheduled_sessions.append(scheduled)
+
+        if len(scheduled_programs) > 1:
+            log.warning(f"scheduled {len(scheduled_programs)} programs")
+        elif len(scheduled_programs) == 0:
+            log.info("no programs were scheduled")
+
+    def run_scheduled_session(self, session: IrrigationProgramSession) -> None:
+        weather = arduino_weather.service.get_current_weather()
+        if weather and weather.rain == 1:
+            log.info("rained before irrigation session, skipping scheduled run")
+            return
+        log.info(f"started irrigation with {session}")
+        self._irrigation_status = IrrigationPydanticSchema.model_validate(session).model_dump()
 
     def get_program(self):
         return self._irrigation_status
 
+    def set_irrigation_program(self, progam: IrrigationProgram):
+        log.info(f"adding program {progam} to database")
+        db_service.add(progam)
 
-service = IrrigationController("IrrigationController")
+    def update_irrigation_program(self, progam: IrrigationProgram):
+        log.info(f"updating program {progam}")
+        db_service.add(progam)
+
+    def update_irrigation_session(self, session: IrrigationProgramSession):
+        log.info(f"updating session {session}")
+        db_service.add(session)
+
+    def get_irrigation_programs(self) -> list[IrrigationProgram]:
+        programs = db_service.session.exec(select(IrrigationProgram)).all()
+        log.info(f"retreived program {programs}")
+        return programs
+
+    def get_irrigation_program_by_id(self, program_id: int) -> IrrigationProgram:
+        program = db_service.session.exec(select(IrrigationProgram).where(IrrigationProgram.id == program_id)).first()
+        log.info(f"retreived program {program}")
+        return program
+
+    def delete_irrigation_program_by_id(self, program_id: int):
+        db_service.session.exec(delete(IrrigationProgram).where(IrrigationProgram.id == program_id))
+        db_service.session.commit()
+        log.info(f"Deleted program {program_id}")
+
+    def get_session_by_id(self, session_id: int) -> IrrigationProgramSession:
+        session = db_service.session.exec(select(IrrigationProgramSession).where(IrrigationProgramSession.id == session_id)).first()
+        log.info(f"retreived session {session}")
+        return session
+
+    def set_automation(self, state: bool):
+        self.automation = state
+        if state is False:
+            log.debug(f'cancelling {len(self._scheduled_jobs)} scheduled jobs and {len(self._scheduled_sessions)} irrigation sessions')
+            [schedule.cancel_job(j) for j in self._scheduled_jobs]
+            self._scheduled_jobs = list()
+            [schedule.cancel_job(j) for j in self._scheduled_sessions]
+            self._scheduled_sessions = list()
+        self._self_edit_config(attribute='automation', new_value=state)

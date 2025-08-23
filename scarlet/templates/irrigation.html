@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Irrigation Programs</h2>
+
+<table class="table-style" id="programs-table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Active</th>
+      <th>Frequency</th>
+      <th>Upper Score</th>
+      <th>Lower Score</th>
+      <th>Sessions</th>
+      <th>
+        <button id="add-program">✚</button>
+        <button id="refresh-programs">🔄</button>
+      </th>
+    </tr>
+  </thead>
+  <tbody id="programs-body">
+    <!-- Rows populated by JS -->
+  </tbody>
+
+  <!-- Form as a table row -->
+    <tfoot>
+        <tr id="add-form-row" style="display: none; background-color: #f9f9f9;">
+            <form id="add-program-form">
+            <td><input type="text" name="name" placeholder="Name" required></td>
+            <td>
+                <select name="is_active">
+                <option value="true">✔️</option>
+                <option value="false">❌</option>
+                </select>
+            </td>
+            <td><input type="number" name="frequency" placeholder="Freq" required></td>
+            <td><input type="number" step="0.01" name="upper_score" placeholder="Upper" required></td>
+            <td><input type="number" step="0.01" name="lower_score" placeholder="Lower" required></td>
+            <td>
+                <div id="add-sessions-container" style="display: flex; flex-direction: column;"></div>
+                <button type="button" onclick="addSessionField()">➕</button>
+            </td>
+            <td><button type="submit">✅</button></td>
+            </form>
+        </tr>
+        <tr>
+            <td colspan="7">
+            <div id="add-response-message" style="text-align: center; font-weight: bold;"></div>
+            </td>
+        </tr>
+    </tfoot>
+</table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  console.log("Inline script test");
+</script>
+<script src="{{ url_for('static', path='/js/irrigation.js') }}"></script>
+{% endblock %}

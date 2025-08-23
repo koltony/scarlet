@@ -1,0 +1,8 @@
+.venv
+.pytest_cache
+.vscode
+*.db
+*.pyc
+*.log
+config.yaml
+__pycache__

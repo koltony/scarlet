@@ -1,114 +1,122 @@
 import datetime as dt
 import requests
-import statistics
-from dataclasses import dataclass
-from typing import Optional, Dict
-from itertools import groupby
-from sqlmodel import select
 import schedule
+import polars as pl
+from sqlmodel import select
 
-from core import log as log_, config
-from db.db import service as db_service
-from db.models import OpenWeatherData
+from scarlet.core import log as log_, config
+from scarlet.db.db import service as db_service
+from scarlet.db.models import Weather, ForecastedWeather, HistoricalWeather
 
 log = log_.service.logger('open_weather')
 
 
-@dataclass
-class WeatherStatistics:
-    span: dt.timedelta
-    temperature: float
-    wind: float
-    clouds: float
-    humidity: float
-    pressure: float
-
-
-class OpenWeatherService(config.Component):
-
-    def __init__(self, name):
-        super().__init__(name)
-        self.apikey = config.ConfigOption(required=True).secret  # type: str
-        self.longitude = config.ConfigOption(required=True).float  # type: float
-        self.latitude = config.ConfigOption(required=True).float  # type: float
-        self.days_of_keeping_data = config.ConfigOption(required=True).integer  # type: int
+class OpenWeatherService(config.Service):
+    url: str = "https://api.open-meteo.com/v1/forecast"
+    _sunset_time = dt.datetime
+    _sunrise_time = dt.datetime
 
     def schedule_jobs(self):
         log.debug("scheduling open weather related jobs")
-        schedule.every(10).minutes.do(self.get_weather_data)
-        schedule.every().day.do(self._clear_data)
-
-    def _clear_data(self):
-        db_service.clear_old_data(OpenWeatherData, dt.datetime.now() - dt.timedelta(days=self.days_of_keeping_data))
+        schedule.every().day.at("00:30").do(self._cache_historic_data)
+        schedule.every().day.at("00:35").do(self._cache_sun_data)
+        schedule.every(2).hours.do(self._cache_forecasted_weather_data)
+    
+    def initialize(self):
+        self._cache_sun_data()
 
     @property
-    def raw_data(self):
+    def sunrise_time(self):
+        return self._sunrise_time
+
+    @property
+    def sunset_time(self):
+        return self._sunset_time
+
+    def _cache_historic_data(self):
+        params = {
+            "latitude": 47.71318,
+            "longitude": 17.6505,
+            "hourly": "temperature_2m,relative_humidity_2m,cloud_cover,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m",
+            "timezone": "Europe/Berlin",
+            "past_days": 5,
+            "forecast_days": 0
+        }
+
         try:
-            raw = requests.get(
-                f'https://api.openweathermap.org/data/2.5/weather?lat={self.latitude}&lon={self.longitude}&appid={self.apikey}&units=metric').json()
-            log.info('weather request was successful')
-            log.debug(f"raw_data = {raw}")
-            return raw
+            raw_data = requests.get(self.url, params=params, timeout=5)
+            df = pl.DataFrame(raw_data.json()['hourly'], schema_overrides={'time': pl.Datetime})
+            df = df.rename({'time': 'timestamp'})
+            last_historic_datapoint: HistoricalWeather = db_service.get_last(HistoricalWeather)
+            df = df.filter(pl.col('timestamp') > last_historic_datapoint.timestamp) if last_historic_datapoint else df
+            datapoints = [HistoricalWeather.model_validate(dict_) for dict_ in df.to_dicts()]
+            log.info(f'caching historical data: {datapoints}')
+            db_service.add_all(datapoints)
         except Exception as e:
-            log.error(f'request failed: {e}')
-            return None
+            log.error(e)
 
-    @staticmethod
-    def get_last_data():
-        return db_service.get_last(OpenWeatherData)
 
-    def get_weather_data(self):
-        weather = self.get_last_data()
-        if not weather or weather.timestamp < dt.datetime.now() - dt.timedelta(minutes=5):
-            data = self.raw_data
-            if data:
-                log.info('Retrieved Open weather data')
-                weather = OpenWeatherData(
-                    temperature=round(data['main']['temp'], 2),
-                    wind=data['wind']['speed'],
-                    clouds=data['clouds']['all'],
-                    pressure=data['main']['pressure'],
-                    humidity=data['main']['humidity'],
-                    timezone=data['timezone'],
-                    sunrise=dt.datetime.fromtimestamp(data['sys']['sunrise']),
-                    sunset=dt.datetime.fromtimestamp(data['sys']['sunset']))
-                log.info(f"Open weather data: {weather}")
-                db_service.add(weather)
-        return weather
+    def _cache_forecasted_weather_data(self):
+        params = {
+            "latitude": 47.71318,
+            "longitude": 17.6505,
+            "hourly": "temperature_2m,relative_humidity_2m,cloud_cover,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m",
+            "timezone": "Europe/Berlin",
+            "past_days": 0,
+            "forecast_days": 2
+        }
+        try:
+            raw_data = requests.get(self.url, params=params, timeout=5)
+            df = pl.DataFrame(raw_data.json()['hourly'], schema_overrides={'time': pl.Datetime})
+            df = df.rename({'time': 'timestamp'})
+            db_service.clear_data_after(ForecastedWeather, df.sort('timestamp')['timestamp'][0])
+            datapoints = [ForecastedWeather.model_validate(dict_) for dict_ in df.to_dicts()]
+            log.info(f'caching forecast data: {datapoints}')
+            db_service.add_all(datapoints)
+        except Exception as e:
+            log.error(e)
+    
+    def _cache_sun_data(self):
+        params = {
+            "latitude": 47.71318,
+            "longitude": 17.6505,
+            "daily": "sunset,sunrise",
+            "timezone": "Europe/Berlin",
+            "past_days": 0,
+            "forecast_days": 1,
+        }
+        try:
+            raw_data = requests.get(self.url, params=params, timeout=5)
 
-    @staticmethod
-    def get_average_weather(timedelta: dt.timedelta) -> Optional[WeatherStatistics]:
-        weathers = db_service.session.exec(select(OpenWeatherData).where(OpenWeatherData.timestamp > dt.datetime.now()-timedelta)).all()
-        if weathers:
-            average = WeatherStatistics(
-                span=timedelta,
-                temperature=statistics.mean([w.temperature for w in weathers]),
-                wind=statistics.mean([w.wind for w in weathers]),
-                clouds=statistics.mean([w.clouds for w in weathers]),
-                humidity=statistics.mean([w.humidity for w in weathers]),
-                pressure=statistics.mean([w.pressure for w in weathers]))
-            log.info(f"Average weather from arduino for the past {timedelta}: {average}")
-            return average
-        return None
+            self._sunset_time = dt.datetime.fromisoformat(raw_data.json()['daily']['sunset'][0])
+            self._sunrise_time = dt.datetime.fromisoformat(raw_data.json()['daily']['sunrise'][0])            
+        except Exception as e:
+            log.error(e)
 
-    @staticmethod
-    def get_hourly_average_weather_for_last_day() -> Optional[Dict[int, WeatherStatistics]]:
-        weathers = db_service.session.exec(select(OpenWeatherData).where(OpenWeatherData.timestamp > dt.datetime.now() - dt.timedelta(hours=24))).all()
-        weathers_by_hour = {key: list(value) for key, value in groupby(weathers, key=lambda w: w.timestamp.hour)}
-        if len(weathers_by_hour) > 0:
-            averages_by_hour = dict()
-            log.info('calculating hourly average weather')
-            for name, data in weathers_by_hour.items():
-                averages_by_hour[name] = WeatherStatistics(
-                        span=dt.timedelta(hours=1),
-                        temperature=statistics.mean([w.temperature for w in data if w is not None]),
-                        wind=statistics.mean([w.wind for w in data if w is not None]),
-                        clouds=statistics.mean([w.clouds for w in data if w is not None]),
-                        humidity=statistics.mean([w.humidity for w in data if w is not None]),
-                        pressure=statistics.mean([w.pressure for w in data if w is not None]))
-            log.info(f"Averages: {averages_by_hour}")
-            return averages_by_hour
-        return None
+    def get_current_data(self) -> Weather:
+        params = {
+            "latitude": 47.71318,
+            "longitude": 17.6505,
+            "current": "temperature_2m,relative_humidity_2m,cloud_cover,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m",
+            "timezone": "Europe/Berlin",
+            "past_days": 0,
+            "forecast_days": 0
+        }
+        try:
+            raw_data = requests.get(self.url, params=params, timeout=5)
+            df = pl.DataFrame(raw_data.json()['current'], schema_overrides={'time': pl.Datetime})
+            df = df.rename({'time': 'timestamp'})
+            log.info(f'retreived current weather: {df}')
+            return Weather.model_validate(df.to_dicts()[0])
+        except Exception as e:
+            log.error(f"{e} \n getting current weather from history")
+            return db_service.get_last(HistoricalWeather)
+
+    def get_closest_history(self, time: dt.datetime) -> HistoricalWeather:
+        return db_service.session.exec(select(HistoricalWeather).where(HistoricalWeather.timestamp < time).order_by(HistoricalWeather.timestamp.desc())).first()
+
+    def get_history(self, time: dt.datetime) -> list[HistoricalWeather]:
+        return db_service.session.exec(select(HistoricalWeather).where(HistoricalWeather.timestamp > time)).all()
 
 
 service = OpenWeatherService('OpenWeatherService')

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Blinds Control</h2>
+<form method="post" action="/blinds">
+    <label>Left Blind:
+        <select name="left_blind">
+            <option value="up">Up</option>
+            <option value="down">Down</option>
+            <option value="nostate">No State</option>
+        </select>
+    </label><br>
+    <label>Right Blind:
+        <select name="right_blind">
+            <option value="up">Up</option>
+            <option value="down">Down</option>
+            <option value="nostate">No State</option>
+        </select>
+    </label><br>
+    <button type="submit">Update Blinds</button>
+</form>
+{% endblock %}
