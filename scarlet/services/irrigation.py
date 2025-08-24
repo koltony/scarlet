@@ -6,33 +6,38 @@ import polars as pl
 
 from scarlet.core import log as log_, config
 from scarlet.services import open_weather, arduino_weather
-from scarlet.db.models import IrrigationSession, IrrigationProgram, IrrigationProgramSession
+from scarlet.db.models import RanIrrigationSessionHistory, IrrigationProgram, IrrigationProgramSession
 from scarlet.db.db import service as db_service
-from scarlet.api.schemas import IrrigationPydanticSchema
+from scarlet.api.schemas import IrrigationSessionSchema, IrrigationRunSessionSchema, IrrigationState
 
 log = log_.service.logger('irrigation')
 
 
 class IrrigationController(config.Controller):
-    _irrigation_status: dict[str, str | int] = {'zone1': 0, 'zone2': 0, 'zone3': 0, 'zone_connected': 0, 'active': 'off'}
+    _irrigation_status: dict[str, str | int] = IrrigationRunSessionSchema(is_active=IrrigationState.nostate)
     _scheduled_sessions: list[IrrigationProgramSession] = list()
     _scheduled_jobs: list[schedule.Job] = list()
     automation: bool
 
     def schedule_jobs(self):
         log.debug("Scheduling Irrigation jobs")
-        if self.automation: 
+        if self.automation:
+            self.scheduling_programs()
             self._scheduled_jobs.append(schedule.every().day.at("03:30").do(self.scheduling_programs))
 
     @staticmethod
     def calculate_score() -> float:
         log.info("Calculating score for irrigation run")
         vapour_df = pl.read_csv(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../resources", "vapour.csv")).unpivot(index="C", variable_name="humidity", value_name="VPD").with_columns([pl.col("humidity").cast(pl.Int32)])
-        weather_df = pl.from_dicts([data.model_dump() for data in open_weather.service.get_history(dt.datetime.now())])
+        weather = [data.model_dump() for data in open_weather.service.get_history(dt.datetime.now() - dt.timedelta(days=2))]
+        if not weather:
+            log.warning('no historic data to calculate score')
+            return 0
+        weather_df = pl.from_dicts(weather)
         weather_df = weather_df.with_columns(pl.col('temperature_2m').cast(pl.Int16).clip(lower_bound=6, upper_bound=35), ((pl.col('relative_humidity_2m') / 5).cast(pl.Int16) * 5).clip(lower_bound=5))
-        weather_df = vapour_df.join(weather_df, left_on='C', right_on='temperature_2m')[['VPD', 'wind_speed_10m']]
-        weather_df.with_columns((pl.col('VPD') + (pl.col('wind_speed_10m') * 0.03)).alias('score'))
-        log.debug(f"Calculating average score based on {weather_df['score']}")
+        weather_df = vapour_df.join(weather_df, left_on='C', right_on='temperature_2m')[['timestamp', 'VPD', 'wind_speed_10m']]
+        weather_df = weather_df.with_columns((pl.col('VPD') + (pl.col('wind_speed_10m') * 0.03)).alias('score'))
+        log.debug(f"Calculating average score based on {weather_df}")
         score = weather_df['score'].mean()
         log.debug(f"Calculated score: {score}")
         return score
@@ -40,14 +45,15 @@ class IrrigationController(config.Controller):
     def scheduling_programs(self):
         log.info("making decision of irrigation run")
         score = self.calculate_score()
-        last_session: IrrigationSession = db_service.get_last(IrrigationSession)
+        last_session: RanIrrigationSessionHistory = db_service.get_last(RanIrrigationSessionHistory)
         log.debug(f"last_session: {last_session}")
-        programs = db_service.session.exec(select(IrrigationProgram).where(IrrigationProgram.is_active is True)).all()
-        log.debug("retreived programs: {programs}")
+        programs = db_service.session.exec(select(IrrigationProgram).where(IrrigationProgram.is_active == True)).all()
+        log.debug(f"retreived programs: {programs}")
 
         self._scheduled_sessions = list()
         scheduled_programs: list[IrrigationProgram] = list()
         for program in programs:
+            log.debug(f"current score: {score} program {program.name}, score: ({program.lower_score}, {program.upper_score})")
             if program.lower_score < score < program.upper_score: 
                 if last_session is None or (((last_session.timestamp - dt.datetime(last_session.timestamp.year,1,1,0)).days >= program.frequency)):
                     scheduled_programs.append(program)
@@ -68,9 +74,19 @@ class IrrigationController(config.Controller):
             log.info("rained before irrigation session, skipping scheduled run")
             return
         log.info(f"started irrigation with {session}")
-        self._irrigation_status = IrrigationPydanticSchema.model_validate(session).model_dump()
+        self._irrigation_status = IrrigationRunSessionSchema(zone1=session.zone1, zone2=session.zone2, zone3=session.zone3, zone_connected=session.zone_connected, is_active=IrrigationState.on)
+        db_service.add(RanIrrigationSessionHistory.model_validate(IrrigationProgramSession.model_validate(session)))
 
-    def get_program(self):
+    def get_historical_sessions(self):
+        return db_service.session.exec(select(RanIrrigationSessionHistory).where(RanIrrigationSessionHistory.timestamp > dt.datetime.now() - dt.timedelta(days=2))).all()
+
+    def set_irrigation_status(self, session: IrrigationRunSessionSchema):
+        log.info(f"ad-hoc irrigation with {session}")
+        self._irrigation_status = session
+        if session.is_active == 'on':
+            db_service.add(RanIrrigationSessionHistory.model_validate(session.model_validate(session)))
+
+    def get_irrigation_status(self):
         return self._irrigation_status
 
     def set_irrigation_program(self, progam: IrrigationProgram):
@@ -113,4 +129,6 @@ class IrrigationController(config.Controller):
             self._scheduled_jobs = list()
             [schedule.cancel_job(j) for j in self._scheduled_sessions]
             self._scheduled_sessions = list()
+        else:
+            self.scheduling_programs()
         self._self_edit_config(attribute='automation', new_value=state)

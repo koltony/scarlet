@@ -33,15 +33,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${program.name || ""}</td>
-          <td>${program.is_active ? "✔️" : "❌"}</td>
+          <td>${program.is_active ? "✅" : "❌"}</td>
           <td>${program.frequency}</td>
           <td>${program.upper_score || ""}</td>
           <td>${program.lower_score || ""}</td>
           <td>${program.sessions?.length || 0} sessions</td>
           <td>
-            <button class="toggle-sessions" data-id="${program.id}">⬇️</button>
-            <button class="edit-row" data-id="${program.id}">✏️</button>
-            <button class="remove-row" data-id="${program.id}">🗑️</button>
+          <button class="edit-row" data-id="${program.id}"><i class="bi bi-pencil-fill"></i></button>
+          <button class="remove-row" data-id="${program.id}"><i class="bi bi-x"></i></button>
+          <button class="toggle-sessions" data-id="${program.id}"><i class="bi bi-chevron-down"></i></button>
           </td>
         `;
         programsBody.appendChild(row);
@@ -107,8 +107,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <td><input type="number" name="zone3" value="${zone3 === "-" ? "" : zone3}"></td>
           <td><input type="number" name="zone_connected" value="${zoneConnected === "-" ? "" : zoneConnected}"></td>
           <td>
-            <button class="save-session" data-id="${btn.dataset.id}" data-program-id="${btn.dataset.programId}">💾</button>
-            <button class="cancel-session" data-program-id="${btn.dataset.programId}">❌</button>
+            <button class="save-session" data-id="${btn.dataset.id}" data-program-id="${btn.dataset.programId}"><i class="bi bi-floppy2-fill"></i></button>
+            <button class="cancel-session" data-program-id="${btn.dataset.programId}"><i class="bi bi-x-lg"></i></button>
           </td>
         `;
       }
@@ -163,8 +163,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td>${s.zone3 ?? "-"}</td>
                     <td>${s.zone_connected ?? "-"}</td>
                     <td>
-                      <button class="edit-session" data-id="${s.id}" data-program-id="${program.id}">✏️</button>
-                      <button class="delete-session" data-id="${s.id}" data-program-id="${program.id}">🗑️</button>
+                      <button class="edit-session" data-id="${s.id}" data-program-id="${program.id}"><i class="bi bi-pencil-fill"></i></button>
+                      <button class="delete-session" data-id="${s.id}" data-program-id="${program.id}"><i class="bi bi-trash3-fill"></i></button>
                     </td>
                   </tr>
                 `).join("")}
@@ -185,8 +185,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <td><input type="number" name="zone3" value="0"></td>
           <td><input type="number" name="zone_connected" value="0"></td>
           <td>
-            <button class="create-session" data-program-id="${program.id}">💾</button>
-            <button class="cancel-new-session">❌</button>
+            <button class="create-session" data-program-id="${program.id}"><i class="bi bi-floppy2-fill"></i></button>
+            <button class="cancel-new-session"><i class="bi bi-x-lg"></i></button>
           </td>
         `;
         tbody.appendChild(newRow);
@@ -200,13 +200,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const cells = row.querySelectorAll("td");
         const [name, activeCell, frequency, upper, lower] =
           Array.from(cells).map(td => td.textContent.trim());
-        const isActive = activeCell.includes("✔️");
+        const isActive = activeCell.includes("✔");
 
         row.innerHTML = `
           <td><input type="text" name="name" value="${name}"></td>
           <td>
             <select name="is_active">
-              <option value="true" ${isActive ? "selected" : ""}>✔️</option>
+              <option value="true" ${isActive ? "selected" : ""}>✅</option>
               <option value="false" ${!isActive ? "selected" : ""}>❌</option>
             </select>
           </td>
@@ -215,8 +215,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <td><input type="number" step="0.01" name="lower_score" value="${lower}"></td>
           <td>${cells[5].textContent}</td>
           <td>
-            <button class="save-edit" data-id="${btn.dataset.id}">💾</button>
-            <button class="cancel-edit">❌</button>
+            <button class="save-edit" data-id="${btn.dataset.id}"><i class="bi bi-floppy2-fill"></i></button>
+            <button class="cancel-edit"><i class="bi bi-x-lg"></i></button>
           </td>
         `;
       }
@@ -289,6 +289,56 @@ document.addEventListener("DOMContentLoaded", () => {
     this.dataset.submitting = "false";
   });
 
+  const sendBtn = document.getElementById("send-irrigation");
+  sendBtn.addEventListener("click", async () => {
+    const payload = {
+      zone1: parseInt(document.getElementById("zone1").value) || 0,
+      zone2: parseInt(document.getElementById("zone2").value) || 0,
+      zone3: parseInt(document.getElementById("zone3").value) || 0,
+      zone_connected: parseInt(document.getElementById("zone_connected").value) || 0,
+      is_active: document.getElementById("is_active").checked ? "on" : "off"
+    };
+
+    try {
+      const res = await fetch("/irrigation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+      console.log("Irrigation updated:", data);
+      // Optional: show a success message in the UI
+    } catch (err) {
+      console.error("Failed to update irrigation:", err);
+      // Optional: show an error message in the UI
+    }
+  });
+
+  const toggle = document.getElementById('automationToggle');
+  const statusText = document.getElementById('automationStatus');
+
+  // Fetch current state on load
+  async function loadAutomationState() {
+    const res = await fetch('/irrigation/automation');
+    const state = await res.json();
+    toggle.checked = state;
+    statusText.textContent = state ? 'Öntözőrendszer: Be' : 'Öntözőrendszer: Ki';
+  }
+
+  // Update state when toggled
+  toggle.addEventListener('change', async () => {
+    const newState = toggle.checked; // true or false
+    statusText.textContent = newState ? 'Öntözőrendszer: Be' : 'Öntözőrendszer: Ki';
+
+    await fetch('/irrigation/automation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({automation: newState}) // or false
+    });
+
+  });
 
 document.getElementById("add-program-form").addEventListener("submit", async function (e) {
   e.preventDefault();
@@ -332,5 +382,60 @@ document.getElementById("add-program-form").addEventListener("submit", async fun
     }
     this.dataset.submitting = "false";
   });
+
+    const svg = document.getElementById('score-svg');
+  const marker = document.getElementById('score-marker');
+  const valueEl = document.getElementById('score-value');
+  const updatedEl = document.getElementById('score-updated');
+
+  // Bar geometry (matches the SVG rect)
+  const BAR_X = 40;    // left x
+  const BAR_W = 560;   // width
+  const MIN = 0;
+  const MAX = 5;
+
+  function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+  function setScore(score) {
+    const s = clamp(Number(score), MIN, MAX);
+    const ratio = (s - MIN) / (MAX - MIN);
+    const cx = BAR_X + ratio * BAR_W;
+
+    marker.setAttribute('cx', cx.toString());
+    valueEl.textContent = s.toFixed(2);
+    const ts = new Date().toLocaleTimeString();
+    updatedEl.textContent = `Frissítve: ${ts}`;
+
+    // Optional pulse feedback
+    svg.classList.add('updated');
+    setTimeout(() => svg.classList.remove('updated'), 500);
+  }
+
+  async function fetchScore() {
+    try {
+      const res = await fetch('/open_weather/score', { headers: { 'Accept': 'application/json, text/plain, */*' }});
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Support both raw float and JSON object responses
+      const text = await res.text();
+      let score;
+      try {
+        const maybeJson = JSON.parse(text);
+        score = typeof maybeJson === 'number' ? maybeJson : maybeJson.score ?? maybeJson.value ?? maybeJson;
+      } catch {
+        score = parseFloat(text);
+      }
+      if (Number.isNaN(score)) throw new Error('Invalid score payload');
+      setScore(score);
+    } catch (err) {
+      console.error('Failed to load score:', err);
+      updatedEl.textContent = 'Nem sikerült betölteni';
+    }
+  }
+
+  loadAutomationState();
   loadPrograms();
+  fetchScore();
 });
+
+
+

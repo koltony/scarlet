@@ -17,18 +17,23 @@ class IrrigationState(Enum):
     off = 'off'
     nostate = 'nostate'
 
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            value = value.lower()
+            for member in cls:
+                if member.value == value:
+                    return member
+        return None
+
+
+class AutomationState(BaseModel):
+    automation: bool
+
 
 class BlindsPydanticSchema(BaseModel):
     left_blind: BlindState
     right_blind: BlindState
-
-
-class IrrigationPydanticSchema(BaseModel):
-    zone1: int
-    zone2: int
-    zone3: int
-    zone_connected: int
-    active: IrrigationState
 
 
 class IrrigationSessionSchema(BaseModel):
@@ -36,6 +41,13 @@ class IrrigationSessionSchema(BaseModel):
     zone2: int = 0
     zone3: int = 0
     zone_connected: int = 0
+
+
+class IrrigationRunSessionSchema(IrrigationSessionSchema):
+    is_active: IrrigationState
+
+class HistoricalIrrigationRunSessionSchema(IrrigationRunSessionSchema):
+    timestamp: dt.datetime
 
 
 class IrrigationUpdateProgramSessionSchema(BaseModel):

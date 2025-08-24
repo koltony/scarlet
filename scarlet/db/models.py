@@ -40,7 +40,7 @@ class IrrigationSessionBase(SQLModel, table=False):
     zone_connected: int = 0
 
 
-class IrrigationSession(IrrigationSessionBase, table=True):
+class RanIrrigationSessionHistory(IrrigationSessionBase, table=True):
     timestamp: dt.datetime = Field(default=dt.datetime.now())
 
 

@@ -1,19 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Irrigation Programs</h2>
+
+<div class="automation-container">
+  <label class="switch">
+    <input type="checkbox" id="automationToggle">
+    <span class="slider round"></span>
+  </label>
+  <span id="automationStatus">Betöltés...</span>
+</div>
+
+<h3>Öntöző Programok</h2>
 
 <table class="table-style" id="programs-table">
   <thead>
     <tr>
-      <th>Name</th>
-      <th>Active</th>
-      <th>Frequency</th>
-      <th>Upper Score</th>
-      <th>Lower Score</th>
-      <th>Sessions</th>
+      <th>Program</th>
+      <th>Aktív</th>
+      <th>Frekvencia</th>
+      <th>Felső határ</th>
+      <th>Alsó határ</th>
+      <th>Futások</th>
       <th>
-        <button id="add-program">✚</button>
-        <button id="refresh-programs">🔄</button>
+        <button id="add-program"><i class="bi bi-plus-circle"></i></button>
+        <button id="refresh-programs"><i class="bi bi-arrow-clockwise"></i></button>
       </th>
     </tr>
   </thead>
@@ -22,13 +31,12 @@
   </tbody>
 
   <!-- Form as a table row -->
-<tfoot>
   <tr id="add-form-row" style="display: none; background-color: #f9f9f9;">
     <td colspan="7">
       <form id="add-program-form" style="display:flex; gap:4px; align-items:center;">
         <input type="text" name="name" placeholder="Name" required>
         <select name="is_active">
-          <option value="true">✔️</option>
+          <option value="true">✅</option>
           <option value="false">❌</option>
         </select>
         <input type="number" name="frequency" placeholder="Freq" required>
@@ -36,7 +44,7 @@
         <input type="number" step="0.01" name="lower_score" placeholder="Lower" required>
         <div id="add-sessions-container" style="display:flex; flex-direction:column;"></div>
         <!-- <button type="button" class="add-session">✚</button> -->
-        <button type="submit">✅</button>
+        <button type="submit">✔</button>
       </form>
     </td>
   </tr>
@@ -45,8 +53,85 @@
       <div id="add-response-message" style="text-align: center; font-weight: bold;"></div>
     </td>
   </tr>
-</tfoot>
 </table>
+
+<div style="margin: 5%;"></div>
+<h3>Ad hoc öntözés</h3>
+<table class="table-style" id="ad-hoc-session">
+  <thead>
+    <tr>
+      <th>Zóna 1</th>
+      <th>Zóna 2</th>
+      <th>Zóna 3</th>
+      <th>Zóna 1 2</th>
+      <th>Ki/Be</th>
+      <th></th> 
+    </tr>
+  </thead>
+  <tbody>
+    <tr id="irrigation-control-row">
+      <td><input type="number" id="zone1" min="0" max="60" placeholder="perc"></td>
+      <td><input type="number" id="zone2" min="0" max="60" placeholder="perc"></td>
+      <td><input type="number" id="zone3" min="0" max="60" placeholder="perc"></td>
+      <td><input type="number" id="zone_connected" min="0" max="60" placeholder="perc"></td>
+      <td>
+        <label class="switch">
+          <input type="checkbox" id="is_active">
+          <span class="slider"></span>
+        </label>
+      </td>
+      <td>
+        <button id="send-irrigation">💧 Start</button>
+      </td>
+    </tr>
+    <!-- Rows populated by JS -->
+  </tbody>
+</table>
+
+<tbody id="ad-hoc-session-body">
+    <!-- Rows populated by JS -->
+</tbody>
+
+<div class="score-card" style="margin-top: 5%;">
+  <div class="score-header">
+     <h3>Párolgás erőssége</h3>
+    <span id="score-value" class="score-value">–</span>
+  </div>
+
+  <svg id="score-svg" class="score-svg" viewBox="0 0 640 80" role="img" aria-labelledby="scoreTitle scoreDesc">
+    <title id="scoreTitle">Öntözési pontszám hőtérképes sávval</title>
+    <desc id="scoreDesc">Vízszintes sáv 0-tól 6-ig, színátmenettel. Piros pont jelzi az aktuális értéket.</desc>
+
+    <!-- Gradient (Viridis-like) -->
+    <defs>
+      <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%"   stop-color="#150184"/>
+        <stop offset="25%"  stop-color="#018415"/>
+        <stop offset="50%"  stop-color="#fd7b25"/>
+        <stop offset="75%"  stop-color="#fd253b"/>
+        <stop offset="100%" stop-color="#360006 "/>
+      </linearGradient>
+    </defs>
+
+    <!-- Bar track and gradient fill -->
+    <rect x="40" y="36" width="560" height="8" rx="4" fill="#e6e6e6"></rect>
+    <rect x="40" y="36" width="560" height="8" rx="4" fill="url(#scoreGradient)"></rect>
+
+    <!-- Ticks and labels -->
+    <g fill="#666" font-size="12">
+      <text x="40"  y="24">0</text>
+      <text x="600" y="24" text-anchor="end">5</text>
+    </g>
+
+    <!-- Marker -->
+    <circle id="score-marker" cx="40" cy="40" r="7" fill="#e53935" stroke="#fff" stroke-width="2"></circle>
+  </svg>
+
+  <div class="score-footer">
+    <small id="score-updated" class="score-updated">Betöltés…</small>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}

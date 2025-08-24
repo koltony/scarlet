@@ -72,13 +72,13 @@ class Controller(BaseModel):
 class Process:
     @staticmethod
     def configure_all(config_path: str, config: dict[str, Any]):
-        if config.get('controllers'):
-            Controller.config_path = config_path
-            Controller.config_controllers(config=config['controllers'])
-
         if config.get('services'):
             Service.config_path = config_path
             Service.config_services(config=config['services'])
+        
+        if config.get('controllers'):
+            Controller.config_path = config_path
+            Controller.config_controllers(config=config['controllers'])
 
     @staticmethod
     def load_yaml(config_path: str) -> dict[str, Any]:

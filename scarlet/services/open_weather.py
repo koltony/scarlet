@@ -21,9 +21,11 @@ class OpenWeatherService(config.Service):
         schedule.every().day.at("00:30").do(self._cache_historic_data)
         schedule.every().day.at("00:35").do(self._cache_sun_data)
         schedule.every(2).hours.do(self._cache_forecasted_weather_data)
-    
+
     def initialize(self):
         self._cache_sun_data()
+        self._cache_historic_data()
+        self._cache_forecasted_weather_data()
 
     @property
     def sunrise_time(self):
@@ -40,7 +42,7 @@ class OpenWeatherService(config.Service):
             "hourly": "temperature_2m,relative_humidity_2m,cloud_cover,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m",
             "timezone": "Europe/Berlin",
             "past_days": 5,
-            "forecast_days": 0
+            "forecast_days": 1
         }
 
         try:
@@ -48,7 +50,7 @@ class OpenWeatherService(config.Service):
             df = pl.DataFrame(raw_data.json()['hourly'], schema_overrides={'time': pl.Datetime})
             df = df.rename({'time': 'timestamp'})
             last_historic_datapoint: HistoricalWeather = db_service.get_last(HistoricalWeather)
-            df = df.filter(pl.col('timestamp') > last_historic_datapoint.timestamp) if last_historic_datapoint else df
+            df = df.filter(pl.col('timestamp') > last_historic_datapoint.timestamp, pl.col('timestamp') <= dt.datetime.now()) if last_historic_datapoint else df
             datapoints = [HistoricalWeather.model_validate(dict_) for dict_ in df.to_dicts()]
             log.info(f'caching historical data: {datapoints}')
             db_service.add_all(datapoints)
@@ -75,7 +77,7 @@ class OpenWeatherService(config.Service):
             db_service.add_all(datapoints)
         except Exception as e:
             log.error(e)
-    
+
     def _cache_sun_data(self):
         params = {
             "latitude": 47.71318,
@@ -89,7 +91,7 @@ class OpenWeatherService(config.Service):
             raw_data = requests.get(self.url, params=params, timeout=5)
 
             self._sunset_time = dt.datetime.fromisoformat(raw_data.json()['daily']['sunset'][0])
-            self._sunrise_time = dt.datetime.fromisoformat(raw_data.json()['daily']['sunrise'][0])            
+            self._sunrise_time = dt.datetime.fromisoformat(raw_data.json()['daily']['sunrise'][0])       
         except Exception as e:
             log.error(e)
 

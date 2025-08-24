@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Form
 from fastapi.templating import Jinja2Templates
@@ -56,12 +57,12 @@ async def post_blinds(item: schemas.BlindsPydanticSchema):
 
 @app.get("/irrigation")
 async def get_irrigation():
-    return Controller.controllers_by_class_name['IrrigationController'].get_program()
+    return Controller.controllers_by_class_name['IrrigationController'].get_irrigation_status()
 
 
 @app.post("/irrigation")
-async def post_irrigation(item: schemas.IrrigationPydanticSchema):
-    Controller.controllers_by_class_name['IrrigationController'].run_program(item)
+async def post_irrigation(item: schemas.IrrigationRunSessionSchema):
+    Controller.controllers_by_class_name['IrrigationController'].set_irrigation_status(item)
 
 
 @app.get("/open_weather")
@@ -69,9 +70,19 @@ async def get_open_weather():
     return open_weather_service.get_current_data()
 
 
+@app.get("/open_weather/score")
+async def get_irrigation_score():
+    return Controller.controllers_by_class_name['IrrigationController'].calculate_score()
+
+
 @app.post("/irrigation/automation")
-async def post_irrigation_automation(item: bool):
-    Controller.controllers_by_class_name['IrrigationController'].set_automation(item)
+async def post_irrigation_automation(item: schemas.AutomationState):
+    Controller.controllers_by_class_name['IrrigationController'].set_automation(item.automation)
+
+
+@app.get("/irrigation/automation")
+async def get_irrigation_automation():
+    return {"automation": Controller.controllers_by_class_name['IrrigationController'].automation}
 
 
 @app.post("/blinds/automation")
@@ -94,6 +105,16 @@ async def post_irrigation_session(program_id: int, item: schemas.IrrigationCreat
     program = Controller.controllers_by_class_name['IrrigationController'].get_irrigation_program_by_id(program_id)
     program.sessions = program.sessions + [models.IrrigationProgramSession(**item.model_dump())]
     Controller.controllers_by_class_name['IrrigationController'].update_irrigation_program(program)
+
+
+@app.get("/irrigation/sessions/history", response_model=list[schemas.HistoricalIrrigationRunSessionSchema])
+async def get_historical_sessions():
+    sessions = list()
+    for session in Controller.controllers_by_class_name['IrrigationController'].get_historical_sessions():
+        session_dict =  session.model_dump()
+        session_dict.update({'is_active': "on"})
+        sessions.append(session_dict)
+    return sessions
 
 
 @app.get("/irrigation/program/all", response_model=list[schemas.IrrigationGetProgramSchema])

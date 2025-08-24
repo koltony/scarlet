@@ -41,7 +41,7 @@ class BlindsController(config.Controller):
             return None
 
         log.debug(f"temperature: {open_weather_data.temperature_2m} > {self.temperature_limit}")
-        if open_weather_data.temperature_2m > self.temperature_limit:
+        if open_weather_data.temperature_2m < self.temperature_limit:
             log.debug("returning False for open weather conditions")
             return False
         else:

@@ -21,16 +21,21 @@ class Database(config.Service):
         log_.service.change_logger('sqlalchemy.orm.mapper.Mapper', log_.LogLevels.info)
         SQLModel.metadata.create_all(bind=self.engine)
         self.session = Session(self.engine)
+        log.debug(f"database initialized")
 
     def clear_old_data(self, model, time: dt.datetime):
         data = self.session.exec(select(model).where(model.timestamp < time)).all()
         log.info(f"deleting {len(data)} items")
-        self.session.delete(data)
+        if data:
+            [self.session.delete(d) for d in data]
+            self.session.commit()
 
     def clear_data_after(self, model, time: dt.datetime):
         data = self.session.exec(select(model).where(model.timestamp > time)).all()
         log.info(f"deleting {len(data)} items")
-        self.session.delete(data)
+        if data:
+            [self.session.delete(d) for d in data]
+            self.session.commit()
 
     def add(self, item: SQLModel):
         self.session.add(item)
