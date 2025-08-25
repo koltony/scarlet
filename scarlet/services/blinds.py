@@ -49,17 +49,16 @@ class BlindsController(config.Controller):
             return True
 
     @staticmethod
-    def _adjust_light_intensity(light_intensity: float) -> float:
+    def _adjust_light_intensity(light_intensity: float, time_of: dt.datetime = dt.datetime.now()) -> float:
         """"Light intensity during the day change a lot and in the late afternoon shading is still needed but the light intensity is much less"""
-        now = dt.datetime.now()
-        if not (open_weather.service.sunrise_time < now < open_weather.service.sunset_time):
+        if not (open_weather.service.sunrise_time < time_of < open_weather.service.sunset_time):
             log.debug("night time, no need for adjustment")
             return 0
 
         noon = open_weather.service.sunrise_time + (open_weather.service.sunset_time - open_weather.service.sunrise_time) * 0.5
         center = 0
         spread = 10
-        current_time_diff_to_center = min(abs(now.hour + now.minute / 60 - noon.hour + noon.minute / 60), 6)
+        current_time_diff_to_center = min(abs(time_of.hour + time_of.minute / 60 - noon.hour + noon.minute / 60), 6)
         return light_intensity / exp(-(current_time_diff_to_center - center) ** 2 / (2 * spread ** 2))
 
     def check_arduino_weather_conditions(self) -> bool:
@@ -67,7 +66,7 @@ class BlindsController(config.Controller):
         if not arduino_weather_data:
             log.error("no average arduino weather data")
             return False
-        adjusted_light = self._adjust_light_intensity(arduino_weather_data.l)
+        adjusted_light = self._adjust_light_intensity(arduino_weather_data.light)
         log.debug(f"light levels({arduino_weather_data.light}adj[{adjusted_light}] > {self.light_limit}")
         if adjusted_light > self.light_limit:
             log.debug("returning True for arduino weather conditions")
@@ -86,11 +85,23 @@ class BlindsController(config.Controller):
             self.blind_status = BlindsPydanticSchema(left_blind='up', right_blind='up')
             db_service.add(BlindAction(is_user=False, is_left_up=True, is_right_up=True))
 
-    def set_automation(self, state: bool):
+
+    def set_blinds(self, item: BlindsPydanticSchema):
+        self.blind_status = item
+        db_service.add(BlindAction(is_user=True, is_left_up=True, is_right_up=True))
+
+
+    def set_settings(self, state: bool):
         self.automation = state
         if state is False:
             log.debug(f'cancelling {len(self._scheduled_jobs)} scheduled jobs')
             [schedule.cancel_job(j) for j in self._scheduled_jobs]
             self._scheduled_jobs = list()
+        else:
+            self.schedule_jobs()
         self._self_edit_config(attribute='automation', new_value=state)
+
+    def get_adjustment_curves(self):
+        history = arduino_weather.service.get_history(dt.datetime.now() - dt.timedelta(days=1))
+        history = [h for h in history if h.timestamp > dt.datetime(dt.date.today().year(), dt.date.today().year(), dt.date.today().year(), 0)]
 

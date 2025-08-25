@@ -3,26 +3,50 @@ header { background: #ffffff; padding: 10px; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #ccc; padding: 6px; }
 
-.navbar-style {
-    list-style-type: none;
-    border: 1px solid #333;
-    border-collapse: separate; 
-    border-spacing: 0;         
-    border-radius: 20;
-    background-color: #333;  
-    overflow: hidden;  
+/* Remove default body margin so navbar touches edges */
+body {
     margin: 0;
-    padding-bottom: 20px;
-    padding-top: 20px;
-    display: flex;     
-    gap: 30px;             
 }
 
-.navbar-style li a {
-    text-decoration: none;    
-    color: #b1b1b1;              
-    font-weight: bold;
+/* Navbar container */
+.navbar {
+    background-color: #333; /* matches your theme */
+    width: 100%;
 }
+
+/* Navbar list */
+.navbar-style {
+    list-style: none;
+    margin: 0;
+    padding: 0 20px; /* horizontal padding for breathing room */
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+/* Navbar links */
+.navbar-style li a {
+    text-decoration: none;
+    color: #e0e0e0; /* softer light gray for contrast */
+    font-weight: 500;
+    font-size: 1rem;
+    padding: 12px 14px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Hover effect */
+.navbar-style li a:hover {
+    background-color: rgba(255,255,255,0.08);
+    color: #fff;
+}
+
+/* Optional: active link style */
+.navbar-style li a.active {
+    background-color: rgba(255,255,255,0.15);
+    color: #fff;
+}
+
 
 .table-style {
     border: 1px solid #333;
@@ -315,3 +339,56 @@ input:checked + .slider:before {
   100% { transform: scale(1); opacity: 1; }
 }
 .updated #score-marker { animation: pulse 0.5s ease; }
+
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f8f8f8;
+    margin: 0;
+    padding: 20px;
+}
+.blinds-control {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 400px;
+    /* margin: auto;  <-- remove this */
+    margin-left: 20px; /* push it in from the left edge */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+h2 {
+    margin-top: 0;
+    text-align: center;
+}
+label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+}
+select {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 10px;
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+button:hover {
+    background: #555;
+}
+.status {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 0.9rem;
+}

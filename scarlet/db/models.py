@@ -9,8 +9,8 @@ log = log_.service.logger("models")
 class ArduinoWeatherData(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     timestamp: dt.datetime = Field(default=dt.datetime.now())
-    wind: int
-    light: int
+    wind: float
+    light: float
     rain: int
 
 

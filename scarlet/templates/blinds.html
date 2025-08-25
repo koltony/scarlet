@@ -1,21 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Blinds Control</h2>
-<form method="post" action="/blinds">
-    <label>Left Blind:
-        <select name="left_blind">
-            <option value="up">Up</option>
-            <option value="down">Down</option>
-            <option value="nostate">No State</option>
-        </select>
-    </label><br>
-    <label>Right Blind:
-        <select name="right_blind">
-            <option value="up">Up</option>
-            <option value="down">Down</option>
-            <option value="nostate">No State</option>
-        </select>
-    </label><br>
-    <button type="submit">Update Blinds</button>
-</form>
+
+
+<div class="automation-container" style="margin-top: 1%;">
+  <label class="switch">
+    <input type="checkbox" id="automationToggle">
+    <span class="slider round"></span>
+  </label>
+  <span id="automationStatus">Betöltés...</span>
+</div>
+
+
+<div class="blinds-control" style="margin-top: 4%;">
+    <h2>Redőny vezérlés</h2>
+
+    <label for="leftBlind">Mari redőny</label>
+    <select id="leftBlind">
+        <option value="up">fel</option>
+        <option value="down">le</option>
+    </select>
+
+    <label for="rightBlind">Pisti redőny</label>
+    <select id="rightBlind">
+        <option value="up">fel</option>
+        <option value="down">le</option>
+    </select>
+
+    <button id="sendBtn">Küldés</button>
+
+    <div class="status" id="statusMsg"></div>
+</div>
+
 {% endblock %}
+
+{% block scripts %}
+<script>
+  console.log("Inline script test");
+</script>
+<script src="{{ url_for('static', path='/js/blinds.js') }}"></script>
+{% endblock %}
+

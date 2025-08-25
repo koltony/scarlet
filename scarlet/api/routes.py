@@ -1,5 +1,5 @@
 import os
-from typing import Any
+import datetime as dt
 
 from fastapi import FastAPI, HTTPException, Request, Form
 from fastapi.templating import Jinja2Templates
@@ -38,6 +38,11 @@ def blinds_page(request: Request):
 @app.get("/weather")
 async def get_weather():
     return arduino_service.get_current_weather()
+
+
+@app.get("/weather/history")
+async def get_historic_weather():
+    return arduino_service.get_history(dt.datetime.now())
 
 
 @app.post("/weather")
@@ -86,8 +91,23 @@ async def get_irrigation_automation():
 
 
 @app.post("/blinds/automation")
-async def post_blinds_automation(item: bool):
-    Controller.controllers_by_class_name['BlindsController'].set_automation(item)
+async def post_blinds_automation(item: schemas.AutomationState):
+    Controller.controllers_by_class_name['BlindsController'].set_automation(item.automation)
+
+
+@app.get("/blinds/automation")
+async def get_blinds_automation():
+    return {"automation": Controller.controllers_by_class_name['BlindsController'].automation}
+
+
+@app.post("/blinds/light_limit")
+async def post_blinds_light_limit(item: schemas.BlindsSettingLightLimitSchema):
+    Controller.controllers_by_class_name['BlindsController'].light_limit = item.limit
+
+
+@app.get("/blinds/light_limit")
+async def get_blinds_light_limit():
+    return {"automation": Controller.controllers_by_class_name['BlindsController'].light_limit}
 
 
 @app.post("/irrigation/program")

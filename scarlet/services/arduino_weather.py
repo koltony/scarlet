@@ -1,5 +1,7 @@
 import statistics
+import datetime as dt
 import schedule
+from sqlmodel import select
 
 from scarlet.core import log as log_, config
 from scarlet.db.models import ArduinoWeatherData
@@ -45,7 +47,7 @@ class ArduinoWeather(config.Service):
     def append_weather_data(self, weather: ArduinoWeatherData) -> None:
         log.debug(f"got weather data from arduino : {weather}")
         weather.wind = self._value_to_wind_speed(weather.wind)
-        self._weather.append(weather.wind)
+        self._weather.append(weather)
         self._weather = self._weather[-self.config.local_cache_size:]
 
     def save_weather_data(self) -> None:
@@ -54,18 +56,21 @@ class ArduinoWeather(config.Service):
                 ArduinoWeatherData(
                     wind = statistics.median([w.wind for w in self._weather]),
                     light = statistics.median([w.light for w in self._weather]),
-                    rain = self._weather[-1].rain()
+                    rain = self._weather[-1].rain
                     )
                 )
         else:
             log.warning("no data available to save")
+
+    def get_history(self, time: dt.datetime) -> list[ArduinoWeatherData]:
+        return db_service.session.exec(select(ArduinoWeatherData).where(ArduinoWeatherData.timestamp > time)).all()
 
     def get_current_weather(self) -> ArduinoWeatherData | None:
         if self._weather:
             return ArduinoWeatherData(
                 wind = statistics.median([w.wind for w in self._weather]),
                 light = statistics.median([w.light for w in self._weather]),
-                rain = self._weather[-1].rain()
+                rain = self._weather[-1].rain
                 )
 
 

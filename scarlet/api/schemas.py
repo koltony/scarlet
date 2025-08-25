@@ -27,6 +27,10 @@ class IrrigationState(Enum):
         return None
 
 
+class BlindsSettingLightLimitSchema(BaseModel):
+    limit: int
+
+
 class AutomationState(BaseModel):
     automation: bool
 
