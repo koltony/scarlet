@@ -115,6 +115,8 @@ body {
 /* Buttons inside tables */
 .table-style button {
   background: linear-gradient(135deg, #4CAF50, #2e7d32);
+  position: relative;
+  z-index: 10;
   color: white;
   border: none;
   padding: 6px 8px;

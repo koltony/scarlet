@@ -59,7 +59,6 @@ class IrrigationController(config.Controller):
                     scheduled_programs.append(program)
                     for session in program.sessions:
                         scheduled = schedule.every().day.at(session.start_time.strftime("%H:%M")).do(self.run_scheduled_session, session=session)
-                        scheduled.cancel_after(dt.datetime(dt.date.today().year, dt.date.today().month, dt.date.today().day,  session.start_time.hour + 1))
                         log.debug(f"scheduled session: {scheduled}")
                         self._scheduled_sessions.append(scheduled)
 
@@ -68,7 +67,7 @@ class IrrigationController(config.Controller):
         elif len(scheduled_programs) == 0:
             log.info("no programs were scheduled")
 
-    def run_scheduled_session(self, session: IrrigationProgramSession) -> None:
+    def run_scheduled_session(self, session: IrrigationProgramSession):
         weather = arduino_weather.service.get_current_weather()
         if weather and weather.rain == 1:
             log.info("rained before irrigation session, skipping scheduled run")
@@ -76,6 +75,7 @@ class IrrigationController(config.Controller):
         log.info(f"started irrigation with {session}")
         self._irrigation_status = IrrigationRunSessionSchema(zone1=session.zone1, zone2=session.zone2, zone3=session.zone3, zone_connected=session.zone_connected, is_active=IrrigationState.on)
         db_service.add(RanIrrigationSessionHistory.model_validate(IrrigationProgramSession.model_validate(session)))
+        return schedule.CancelJob
 
     def get_historical_sessions(self):
         return db_service.session.exec(select(RanIrrigationSessionHistory).where(RanIrrigationSessionHistory.timestamp > dt.datetime.now() - dt.timedelta(days=2))).all()

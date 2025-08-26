@@ -35,9 +35,9 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${program.name || ""}</td>
           <td>${program.is_active ? "✅" : "❌"}</td>
           <td>${program.frequency}</td>
-          <td>${program.upper_score || ""}</td>
           <td>${program.lower_score || ""}</td>
-          <td>${program.sessions?.length || 0} sessions</td>
+          <td>${program.upper_score || ""}</td>
+          <td>${program.sessions?.length || 0} napi futás</td>
           <td>
           <button class="edit-row" data-id="${program.id}"><i class="bi bi-pencil-fill"></i></button>
           <button class="remove-row" data-id="${program.id}"><i class="bi bi-x"></i></button>
@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   programsBody.addEventListener("click", async e => {
-    const btn = e.target;
+    const btn = e.target.closest("button");
     const row = btn.closest("tr");
 
     try {
@@ -198,9 +198,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (btn.classList.contains("edit-row")) {
         const cells = row.querySelectorAll("td");
-        const [name, activeCell, frequency, upper, lower] =
+        const [name, activeCell, frequency, lower, upper] =
           Array.from(cells).map(td => td.textContent.trim());
-        const isActive = activeCell.includes("✔");
+        const isActive = activeCell.includes("✅");
 
         row.innerHTML = `
           <td><input type="text" name="name" value="${name}"></td>
@@ -211,8 +211,8 @@ document.addEventListener("DOMContentLoaded", () => {
             </select>
           </td>
           <td><input type="number" name="frequency" value="${frequency}"></td>
-          <td><input type="number" step="0.01" name="upper_score" value="${upper}"></td>
           <td><input type="number" step="0.01" name="lower_score" value="${lower}"></td>
+          <td><input type="number" step="0.01" name="upper_score" value="${upper}"></td>
           <td>${cells[5].textContent}</td>
           <td>
             <button class="save-edit" data-id="${btn.dataset.id}"><i class="bi bi-floppy2-fill"></i></button>
@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (btn.classList.contains("save-edit")) {
         const payload = collectFormData(row, false);
         payload.is_active = payload.is_active === "true";
-        ["frequency", "upper_score", "lower_score"].forEach(k => {
+        ["frequency", "lower_score", "upper_score"].forEach(k => {
           if (payload[k] !== undefined) payload[k] = parseFloat(payload[k]);
         });
         await fetchJSON(`/irrigation/program/${btn.dataset.id}`, {
@@ -323,7 +323,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadAutomationState() {
     const res = await fetch('/irrigation/automation');
     const state = await res.json();
-    toggle.checked = state;
+    toggle.checked = state.automation;
     statusText.textContent = state ? 'Öntözőrendszer: Be' : 'Öntözőrendszer: Ki';
   }
 

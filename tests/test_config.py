@@ -24,8 +24,7 @@ service = DummyService('dummy_service')
             "services": {
                 'dummy_service': {
                     'variable1': 123,
-                    'variable2': 'hello'
-                }
+                    'variable2': 'hello'                }
             }
         },
         [

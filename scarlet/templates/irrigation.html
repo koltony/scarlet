@@ -17,8 +17,8 @@
       <th>Program</th>
       <th>Aktív</th>
       <th>Frekvencia</th>
-      <th>Felső határ</th>
       <th>Alsó határ</th>
+      <th>Felső határ</th>
       <th>Futások</th>
       <th>
         <button id="add-program"><i class="bi bi-plus-circle"></i></button>
@@ -34,14 +34,14 @@
   <tr id="add-form-row" style="display: none; background-color: #f9f9f9;">
     <td colspan="7">
       <form id="add-program-form" style="display:flex; gap:4px; align-items:center;">
-        <input type="text" name="name" placeholder="Name" required>
+        <input type="text" name="name" placeholder="Program név" required>
         <select name="is_active">
           <option value="true">✅</option>
           <option value="false">❌</option>
         </select>
-        <input type="number" name="frequency" placeholder="Freq" required>
-        <input type="number" step="0.01" name="upper_score" placeholder="Upper" required>
-        <input type="number" step="0.01" name="lower_score" placeholder="Lower" required>
+        <input type="number" name="frequency" placeholder="Frekvencia" required>
+        <input type="number" step="0.01" name="lower_score" placeholder="Alsó határ (0-5)" required>
+        <input type="number" step="0.01" name="upper_score" placeholder="Felső határ (0-5)" required>
         <div id="add-sessions-container" style="display:flex; flex-direction:column;"></div>
         <!-- <button type="button" class="add-session">✚</button> -->
         <button type="submit">✔</button>

@@ -4,13 +4,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggle = document.getElementById('automationToggle');
   const statusText = document.getElementById('automationStatus');
 
-  // Fetch current state on load
-  async function loadAutomationState() {
-    const res = await fetch('/blinds/automation');
-    const state = await res.json();
-    toggle.checked = state;
-    statusText.textContent = state ? 'Automata Redőny: Be' : 'Automata Redőny: Ki';
-  }
+async function loadAutomationState() {
+  const res = await fetch('/blinds/automation');
+  const state = await res.json();
+  toggle.checked = state.automation;
+  statusText.textContent = state.automation ? 'Automata Redőny: Be' : 'Automata Redőny: Ki';
+}
+
 
   // Update state when toggled
   toggle.addEventListener('change', async () => {

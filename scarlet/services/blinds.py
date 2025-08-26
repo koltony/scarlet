@@ -91,7 +91,7 @@ class BlindsController(config.Controller):
         db_service.add(BlindAction(is_user=True, is_left_up=True, is_right_up=True))
 
 
-    def set_settings(self, state: bool):
+    def set_automation(self, state: bool):
         self.automation = state
         if state is False:
             log.debug(f'cancelling {len(self._scheduled_jobs)} scheduled jobs')
