@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sessionRow.className = "session-row";
       sessionRow.innerHTML = `
         <td colspan="7" style="background-color:#eef; padding:10px;">
-          <strong>Sessions</strong>
+          <strong>Futások</strong>
           <div style="margin-top:10px;">
             <table style="width:100%; border-collapse:collapse;">
               <thead>
@@ -280,11 +280,11 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("add-sessions-container").innerHTML = "";
         loadPrograms();
       } else {
-        document.getElementById("add-response-message").textContent = "❌ Failed to add program.";
+        document.getElementById("add-response-message").textContent = "❌ Program hozzáadása sikertelen";
       }
     } catch (err) {
       console.error(err);
-      document.getElementById("add-response-message").textContent = "❌ Failed to add program.";
+      document.getElementById("add-response-message").textContent = "❌ Program hozzáadása sikertelen";
     }
     this.dataset.submitting = "false";
   });
@@ -374,11 +374,11 @@ document.getElementById("add-program-form").addEventListener("submit", async fun
         document.getElementById("add-sessions-container").innerHTML = "";
         loadPrograms();
       } else {
-        document.getElementById("add-response-message").textContent = "❌ Failed to add program.";
+        document.getElementById("add-response-message").textContent = "❌ Program hozzáadása sikertelen";
       }
     } catch (err) {
       console.error(err);
-      document.getElementById("add-response-message").textContent = "❌ Failed to add program.";
+      document.getElementById("add-response-message").textContent = "❌ Program hozzáadása sikertelen";
     }
     this.dataset.submitting = "false";
   });
@@ -427,7 +427,7 @@ document.getElementById("add-program-form").addEventListener("submit", async fun
       if (Number.isNaN(score)) throw new Error('Invalid score payload');
       setScore(score);
     } catch (err) {
-      console.error('Failed to load score:', err);
+      console.error('Nem sikerült betölteni:', err);
       updatedEl.textContent = 'Nem sikerült betölteni';
     }
   }
