@@ -175,6 +175,8 @@ async def delete_irrigation_program(program_id: int):
     """
     Deletes program
     """
+    program = Controller.controllers_by_class_name['IrrigationController'].get_irrigation_program_by_id(program_id)
+    [Controller.controllers_by_class_name['IrrigationController'].delete_irrigation_session_by_id(session.id) for session in program.sessions]
     Controller.controllers_by_class_name['IrrigationController'].delete_irrigation_program_by_id(program_id)
 
 
@@ -194,8 +196,8 @@ async def delete_session(program_id: int, session_id: int):
 
     # Remove it
     program.sessions = [s for s in program.sessions if s.id != session_id]
-
     Controller.controllers_by_class_name['IrrigationController'].update_irrigation_program(program)
+    Controller.controllers_by_class_name['IrrigationController'].delete_irrigation_session_by_id(session_id)
     return {"detail": "Session deleted"}
 
 

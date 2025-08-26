@@ -35,7 +35,7 @@ class IrrigationController(config.Controller):
             return 0
         weather_df = pl.from_dicts(weather)
         weather_df = weather_df.with_columns(pl.col('temperature_2m').cast(pl.Int16).clip(lower_bound=6, upper_bound=35), ((pl.col('relative_humidity_2m') / 5).cast(pl.Int16) * 5).clip(lower_bound=5))
-        weather_df = vapour_df.join(weather_df, left_on='C', right_on='temperature_2m')[['timestamp', 'VPD', 'wind_speed_10m']]
+        weather_df = vapour_df.join(weather_df, left_on=['C', 'humidity'], right_on=['temperature_2m', 'relative_humidity_2m'])[['timestamp', 'VPD', 'wind_speed_10m', 'C', 'humidity']]
         weather_df = weather_df.with_columns((pl.col('VPD') + (pl.col('wind_speed_10m') * 0.03)).alias('score'))
         log.debug(f"Calculating average score based on {weather_df}")
         score = weather_df['score'].mean()
@@ -54,17 +54,16 @@ class IrrigationController(config.Controller):
         scheduled_programs: list[IrrigationProgram] = list()
         for program in programs:
             log.debug(f"current score: {score} program {program.name}, score: ({program.lower_score}, {program.upper_score})")
-            if program.lower_score < score < program.upper_score: 
+            if program.lower_score <= score <= program.upper_score: 
                 if last_session is None or (((last_session.timestamp - dt.datetime(last_session.timestamp.year,1,1,0)).days >= program.frequency)):
                     scheduled_programs.append(program)
                     for session in program.sessions:
                         scheduled = schedule.every().day.at(session.start_time.strftime("%H:%M")).do(self.run_scheduled_session, session=session)
                         log.debug(f"scheduled session: {scheduled}")
                         self._scheduled_sessions.append(scheduled)
+                    break
 
-        if len(scheduled_programs) > 1:
-            log.warning(f"scheduled {len(scheduled_programs)} programs")
-        elif len(scheduled_programs) == 0:
+        if len(scheduled_programs) == 0:
             log.info("no programs were scheduled")
 
     def run_scheduled_session(self, session: IrrigationProgramSession):
@@ -115,6 +114,11 @@ class IrrigationController(config.Controller):
         db_service.session.exec(delete(IrrigationProgram).where(IrrigationProgram.id == program_id))
         db_service.session.commit()
         log.info(f"Deleted program {program_id}")
+
+    def delete_irrigation_session_by_id(self, session_id: int):
+        db_service.session.exec(delete(IrrigationProgramSession).where(IrrigationProgramSession.id == session_id))
+        db_service.session.commit()
+        log.info(f"Deleted session {session_id}")
 
     def get_session_by_id(self, session_id: int) -> IrrigationProgramSession:
         session = db_service.session.exec(select(IrrigationProgramSession).where(IrrigationProgramSession.id == session_id)).first()
