@@ -145,10 +145,10 @@ document.addEventListener("DOMContentLoaded", () => {
               <thead>
                 <tr>
                   <th>Start Time</th>
-                  <th>Zone 1</th>
-                  <th>Zone 2</th>
-                  <th>Zone 3</th>
-                  <th>Connected Zone</th>
+                  <th>Zóna 1</th>
+                  <th>Zóne 2</th>
+                  <th>Zóne 3</th>
+                  <th>Zóna 1 2</th>
                   <th style="text-align:right;">
                     <button class="add-session" data-program-id="${program.id}">✚</button>
                   </th>
@@ -296,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
       zone2: parseInt(document.getElementById("zone2").value) || 0,
       zone3: parseInt(document.getElementById("zone3").value) || 0,
       zone_connected: parseInt(document.getElementById("zone_connected").value) || 0,
-      is_active: document.getElementById("is_active").checked ? "on" : "off"
+      active: document.getElementById("is_active").checked ? "on" : "off"
     };
 
     try {
@@ -307,8 +307,33 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data = await res.json();
-      console.log("Irrigation updated:", data);
+      const statusMsg = document.getElementById('statusMsg');
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.detail == 'Accepted'){
+          statusMsg.classList.remove('fade-out');
+          statusMsg.textContent = 'Siker!';
+          statusMsg.style.color = 'green';
+          statusMsg.style.opacity = 1;
+        } else {
+          statusMsg.classList.remove('fade-out');
+          statusMsg.textContent = 'Arduino nem reagált!';
+          statusMsg.style.color = 'orange';
+          statusMsg.style.opacity = 1;
+            statusMsg.classList.remove('fade-out');
+        void statusMsg.offsetWidth; // Force reflow
+        statusMsg.classList.add('fade-out')
+        }
+      } else {
+        statusMsg.textContent = 'Error sending command.';
+        statusMsg.style.color = 'red';
+      }
+
+      setTimeout(() => {
+        statusMsg.textContent = '';
+      }, 5000);
+
       // Optional: show a success message in the UI
     } catch (err) {
       console.error("Failed to update irrigation:", err);

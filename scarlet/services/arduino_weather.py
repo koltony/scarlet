@@ -55,7 +55,8 @@ class ArduinoWeather(config.Service):
             db_service.add(
                 ArduinoWeatherData(
                     wind = statistics.median([w.wind for w in self._weather]),
-                    light = statistics.median([w.light for w in self._weather]),
+                    light_1 = statistics.median([w.light_1 for w in self._weather]),
+                    light_2 = statistics.median([w.light_2 for w in self._weather]),
                     rain = self._weather[-1].rain
                     )
                 )
@@ -69,7 +70,8 @@ class ArduinoWeather(config.Service):
         if self._weather:
             return ArduinoWeatherData(
                 wind = statistics.median([w.wind for w in self._weather]),
-                light = statistics.median([w.light for w in self._weather]),
+                light_1 = statistics.median([w.light_1 for w in self._weather]),
+                light_2 = statistics.median([w.light_2 for w in self._weather]),
                 rain = self._weather[-1].rain
                 )
 

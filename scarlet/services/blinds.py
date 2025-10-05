@@ -5,7 +5,7 @@ import schedule
 from scarlet.core import log as log_, config
 import scarlet.services.open_weather as open_weather
 import scarlet.services.arduino_weather as arduino_weather
-from scarlet.api.schemas import BlindsPydanticSchema
+from scarlet.api.schemas import BlindsPydanticSchema, BlindState
 from scarlet.db.models import BlindAction
 from scarlet.db.db import service as db_service
 
@@ -13,7 +13,7 @@ log = log_.service.logger('blinds')
 
 
 class BlindsController(config.Controller):
-    _blinds_status: dict[str, str] = {'left_blind': 'nostate', 'right_blind': 'nostate'}
+    _blinds_status: BlindsPydanticSchema = BlindsPydanticSchema(left_blind=BlindState.nostate, right_blind=BlindState.nostate)
     _scheduled_jobs: list[schedule.Job] = list()
     temperature_limit: float
     light_limit: float
@@ -26,7 +26,7 @@ class BlindsController(config.Controller):
 
     @blind_status.setter
     def blind_status(self, program: BlindsPydanticSchema):
-        self._blinds_status = program.model_dump()
+        self._blinds_status = program
 
     def schedule_jobs(self):
         log.debug("scheduling blinds related jobs")
@@ -66,8 +66,8 @@ class BlindsController(config.Controller):
         if not arduino_weather_data:
             log.error("no average arduino weather data")
             return False
-        adjusted_light = self._adjust_light_intensity(arduino_weather_data.light)
-        log.debug(f"light levels({arduino_weather_data.light}adj[{adjusted_light}] > {self.light_limit}")
+        adjusted_light = self._adjust_light_intensity(arduino_weather_data.light_1)
+        log.debug(f"light levels({arduino_weather_data.light_1} adj[{adjusted_light}] > {self.light_limit}")
         if adjusted_light > self.light_limit:
             log.debug("returning True for arduino weather conditions")
             return True
@@ -104,4 +104,3 @@ class BlindsController(config.Controller):
     def get_adjustment_curves(self):
         history = arduino_weather.service.get_history(dt.datetime.now() - dt.timedelta(days=1))
         history = [h for h in history if h.timestamp > dt.datetime(dt.date.today().year(), dt.date.today().year(), dt.date.today().year(), 0)]
-

@@ -48,7 +48,7 @@ class IrrigationSessionSchema(BaseModel):
 
 
 class IrrigationRunSessionSchema(IrrigationSessionSchema):
-    is_active: IrrigationState
+    active: IrrigationState
 
 class HistoricalIrrigationRunSessionSchema(IrrigationRunSessionSchema):
     timestamp: dt.datetime

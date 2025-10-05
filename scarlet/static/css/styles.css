@@ -389,8 +389,22 @@ button {
 button:hover {
     background: #555;
 }
+
 .status {
-    margin-top: 15px;
-    text-align: center;
-    font-size: 0.9rem;
+  margin-top: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: bold;
+  opacity: 1;
+}
+
+.fade-out {
+  animation: fadeOut 2s ease-out forwards;
+  animation-delay: 3s; /* Wait 3s before fading */
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+  }
 }

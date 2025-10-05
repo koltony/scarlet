@@ -14,7 +14,7 @@ log = log_.service.logger('irrigation')
 
 
 class IrrigationController(config.Controller):
-    _irrigation_status: dict[str, str | int] = IrrigationRunSessionSchema(is_active=IrrigationState.nostate)
+    _irrigation_status: IrrigationRunSessionSchema = IrrigationRunSessionSchema(active=IrrigationState.nostate)
     _scheduled_sessions: list[IrrigationProgramSession] = list()
     _scheduled_jobs: list[schedule.Job] = list()
     automation: bool
@@ -54,8 +54,9 @@ class IrrigationController(config.Controller):
         scheduled_programs: list[IrrigationProgram] = list()
         for program in programs:
             log.debug(f"current score: {score} program {program.name}, score: ({program.lower_score}, {program.upper_score})")
-            if program.lower_score <= score <= program.upper_score: 
+            if program.lower_score <= score <= program.upper_score:
                 if last_session is None or (((last_session.timestamp - dt.datetime(last_session.timestamp.year,1,1,0)).days >= program.frequency)):
+                    log.info(f"last session: {last_session}")
                     scheduled_programs.append(program)
                     for session in program.sessions:
                         scheduled = schedule.every().day.at(session.start_time.strftime("%H:%M")).do(self.run_scheduled_session, session=session)
@@ -68,21 +69,27 @@ class IrrigationController(config.Controller):
 
     def run_scheduled_session(self, session: IrrigationProgramSession):
         weather = arduino_weather.service.get_current_weather()
+        precipitation_prev24 = sum([w.precipitation for w in open_weather.service.get_history(dt.timedelta(hours=24))])
         if weather and weather.rain == 1:
             log.info("rained before irrigation session, skipping scheduled run")
-            return
+            return schedule.CancelJob
+        if precipitation_prev24 and 10 < precipitation_prev24:
+            log.info(f"rained {precipitation_prev24}mm before irrigation session, skipping scheduled run")
+            return schedule.CancelJob
         log.info(f"started irrigation with {session}")
-        self._irrigation_status = IrrigationRunSessionSchema(zone1=session.zone1, zone2=session.zone2, zone3=session.zone3, zone_connected=session.zone_connected, is_active=IrrigationState.on)
-        db_service.add(RanIrrigationSessionHistory.model_validate(IrrigationProgramSession.model_validate(session)))
+        self._irrigation_status = IrrigationRunSessionSchema(zone1=session.zone1, zone2=session.zone2, zone3=session.zone3, zone_connected=session.zone_connected, active=IrrigationState.on)
+        session_dict = session.model_dump()
+        session_dict.pop('id')
+        db_service.add(RanIrrigationSessionHistory.model_validate(session_dict))
         return schedule.CancelJob
 
     def get_historical_sessions(self):
         return db_service.session.exec(select(RanIrrigationSessionHistory).where(RanIrrigationSessionHistory.timestamp > dt.datetime.now() - dt.timedelta(days=2))).all()
 
     def set_irrigation_status(self, session: IrrigationRunSessionSchema):
-        log.info(f"ad-hoc irrigation with {session}")
+        log.info(f"updating irrigation status: {session}")
         self._irrigation_status = session
-        if session.is_active == 'on':
+        if session.active == 'on':
             db_service.add(RanIrrigationSessionHistory.model_validate(session.model_validate(session)))
 
     def get_irrigation_status(self):
@@ -91,14 +98,20 @@ class IrrigationController(config.Controller):
     def set_irrigation_program(self, progam: IrrigationProgram):
         log.info(f"adding program {progam} to database")
         db_service.add(progam)
+        if self.automation:
+            self.scheduling_programs()
 
     def update_irrigation_program(self, progam: IrrigationProgram):
         log.info(f"updating program {progam}")
         db_service.add(progam)
+        if self.automation:
+            self.scheduling_programs()
 
     def update_irrigation_session(self, session: IrrigationProgramSession):
         log.info(f"updating session {session}")
         db_service.add(session)
+        if self.automation:
+            self.scheduling_programs()
 
     def get_irrigation_programs(self) -> list[IrrigationProgram]:
         programs = db_service.session.exec(select(IrrigationProgram)).all()
@@ -114,11 +127,15 @@ class IrrigationController(config.Controller):
         db_service.session.exec(delete(IrrigationProgram).where(IrrigationProgram.id == program_id))
         db_service.session.commit()
         log.info(f"Deleted program {program_id}")
+        if self.automation:
+            self.scheduling_programs()
 
     def delete_irrigation_session_by_id(self, session_id: int):
         db_service.session.exec(delete(IrrigationProgramSession).where(IrrigationProgramSession.id == session_id))
         db_service.session.commit()
         log.info(f"Deleted session {session_id}")
+        if self.automation:
+            self.scheduling_programs()
 
     def get_session_by_id(self, session_id: int) -> IrrigationProgramSession:
         session = db_service.session.exec(select(IrrigationProgramSession).where(IrrigationProgramSession.id == session_id)).first()

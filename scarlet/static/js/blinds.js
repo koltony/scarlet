@@ -39,13 +39,30 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
             })
         });
 
-        if (res.ok) {
-            document.getElementById('statusMsg').textContent = 'Siker!';
-            document.getElementById('statusMsg').style.color = 'green';
+      if (res.ok) {
+        const data = await res.json();
+        if (data.detail == 'Accepted'){
+          statusMsg.classList.remove('fade-out');
+          statusMsg.textContent = 'Siker!';
+          statusMsg.style.color = 'green';
+          statusMsg.style.opacity = 1;
         } else {
-            document.getElementById('statusMsg').textContent = 'Error sending command.';
-            document.getElementById('statusMsg').style.color = 'red';
+          statusMsg.classList.remove('fade-out');
+          statusMsg.textContent = 'Arduino nem reagált!';
+          statusMsg.style.color = 'orange';
+          statusMsg.style.opacity = 1;
         }
+        void statusMsg.offsetWidth; // Force reflow
+        statusMsg.classList.add('fade-out')
+      } else {
+        statusMsg.textContent = 'Error sending command.';
+        statusMsg.style.color = 'red';
+      }
+
+      setTimeout(() => {
+        statusMsg.textContent = '';
+      }, 5000);
+
     } catch (err) {
         document.getElementById('statusMsg').textContent = 'Network error.';
         document.getElementById('statusMsg').style.color = 'red';

@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+import asyncio
 
 import scarlet.core.log as log_
 import scarlet.api.schemas as schemas
@@ -58,6 +59,17 @@ async def get_blinds():
 @app.post("/blinds")
 async def post_blinds(item: schemas.BlindsPydanticSchema):
     Controller.controllers_by_class_name['BlindsController'].set_blinds(item)
+    await asyncio.sleep(2)
+    status: schemas.BlindsPydanticSchema = Controller.controllers_by_class_name['BlindsController'].blind_status
+    if item.left_blind is not schemas.BlindState.nostate and status.left_blind == schemas.BlindState.nostate:
+        log.info('arduino accepted the request')
+        return {"detail": "Accepted"}
+    if item.right_blind is not schemas.BlindState.nostate and status.right_blind == schemas.BlindState.nostate:
+        log.info('arduino accepted the request')
+        return {"detail": "Accepted"}
+
+    log.warning('arduino (irrigation) not responded the request')
+    return {"detail": "No response"}
 
 
 @app.get("/irrigation")
@@ -68,7 +80,13 @@ async def get_irrigation():
 @app.post("/irrigation")
 async def post_irrigation(item: schemas.IrrigationRunSessionSchema):
     Controller.controllers_by_class_name['IrrigationController'].set_irrigation_status(item)
+    await asyncio.sleep(2)
+    if Controller.controllers_by_class_name['IrrigationController'].get_irrigation_status().active == schemas.IrrigationState.nostate:
+        log.info('arduino accepted the request')
+        return {"detail": "Accepted"}
 
+    log.warning('arduino (irrigation) not responded the request')
+    return {"detail": "No response"}
 
 @app.get("/open_weather")
 async def get_open_weather():

@@ -23,6 +23,8 @@ log = log_.service.logger('main')
 def parse_arguments():
     parser = argparse.ArgumentParser(prog='scarlet')
     parser.add_argument('--log_level', required=False, type=str, help="Available logging options are debug, info, warning, error")
+    parser.add_argument('--host', required=True, type=str, help="Host of the process")
+    parser.add_argument('--port', required=True, type=int, help="Port of the opened server")
     parser.add_argument('--config', required=True, type=str, help="Config yaml path")
     args = parser.parse_args()
     if args.log_level:
@@ -55,13 +57,9 @@ async def run_schedule():
         await asyncio.sleep(1)
 
 
-def run():
-    uvicorn.run(routes.app, host="localhost", port=8000, loop='uvloop')
-
-
 if __name__ == '__main__':
     log = log_.service.logger('main')
     parser = parse_arguments()
     log_.service.set_log_level(parser.log_level if parser.log_level else log_.LogLevels.debug)
     config.Process.run_process(config_path=parser.config)
-    run()
+    uvicorn.run(routes.app, host=parser.host, port=parser.port, loop='uvloop')
