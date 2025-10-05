@@ -53,7 +53,7 @@ async def post_weather(item: models.ArduinoWeatherData):
 
 @app.get("/blinds")
 async def get_blinds():
-    return Controller.controllers_by_class_name['BlindsController'].get_blinds()
+    return Controller.controllers_by_class_name['BlindsController'].blind_status()
 
 
 @app.post("/blinds")

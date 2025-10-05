@@ -8,7 +8,7 @@ log = log_.service.logger("models")
 
 class ArduinoWeatherData(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    timestamp: dt.datetime = Field(default=dt.datetime.now())
+    timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
     wind: float
     light_1: float
     light_2: float
@@ -42,7 +42,7 @@ class IrrigationSessionBase(SQLModel, table=False):
 
 
 class RanIrrigationSessionHistory(IrrigationSessionBase, table=True):
-    timestamp: dt.datetime = Field(default=dt.datetime.now())
+    timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
 
 
 class IrrigationProgramSession(IrrigationSessionBase, table=True):
@@ -63,7 +63,7 @@ class IrrigationProgram(SQLModel, table=True):
 
 class BlindAction(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    timestamp: dt.datetime = Field(default=dt.datetime.now())
+    timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
     is_user: bool
     is_left_up: bool
     is_right_up: bool

@@ -40,7 +40,7 @@ class ArduinoWeather(config.Service):
 
         meter_per_sec = (value_voltage - self.config.anemometer_milli_volt_out_min) / meter_per_sec_per_voltage
         km_per_hour = round(meter_per_sec * 3.6, 1)
-        log.debug(f"calculated wind speed: {km_per_hour}")
+        log.debug(f"calculated wind speed: {km_per_hour} km/h")
         return km_per_hour
 
 

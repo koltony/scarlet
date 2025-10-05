@@ -53,10 +53,9 @@ class IrrigationController(config.Controller):
         self._scheduled_sessions = list()
         scheduled_programs: list[IrrigationProgram] = list()
         for program in programs:
-            log.debug(f"current score: {score} program {program.name}, score: ({program.lower_score}, {program.upper_score})")
+            log.debug(f"current score: {score} program {program.name}, score: ({program.lower_score}, {program.upper_score}), frequency: {program.frequency}")
             if program.lower_score <= score <= program.upper_score:
-                if last_session is None or (((last_session.timestamp - dt.datetime(last_session.timestamp.year,1,1,0)).days >= program.frequency)):
-                    log.info(f"last session: {last_session}")
+                if last_session is None or program.frequency == 1 or (((dt.datetime(dt.datetime.now().year, dt.datetime.now().month, dt.datetime.now().day, 23, 59) - last_session.timestamp).days >= program.frequency)):
                     scheduled_programs.append(program)
                     for session in program.sessions:
                         scheduled = schedule.every().day.at(session.start_time.strftime("%H:%M")).do(self.run_scheduled_session, session=session)
