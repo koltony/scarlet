@@ -10,6 +10,7 @@ class ArduinoWeatherData(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
     wind: float
+    raw_wind: float | None = None
     light_1: float
     light_2: float
     rain: int
