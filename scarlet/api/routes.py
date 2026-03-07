@@ -46,47 +46,26 @@ async def get_historic_weather():
     return arduino_service.get_history(dt.datetime.now())
 
 
-@app.post("/weather")
-async def post_weather(item: models.ArduinoWeatherData):
-    arduino_service.append_weather_data(item)
-
-
-@app.get("/blinds")
-async def get_blinds():
-    return Controller.controllers_by_class_name['BlindsController'].blind_status
-
-
 @app.post("/blinds")
 async def post_blinds(item: schemas.BlindsPydanticSchema):
-    Controller.controllers_by_class_name['BlindsController'].set_blinds(item)
-    await asyncio.sleep(2)
-    status: schemas.BlindsPydanticSchema = Controller.controllers_by_class_name['BlindsController'].blind_status
-    if item.left_blind is not schemas.BlindState.nostate and status.left_blind == schemas.BlindState.nostate:
+    status = Controller.controllers_by_class_name['BlindsController'].set_blinds(item)
+    if status is True:
         log.info('arduino accepted the request')
         return {"detail": "Accepted"}
-    if item.right_blind is not schemas.BlindState.nostate and status.right_blind == schemas.BlindState.nostate:
-        log.info('arduino accepted the request')
-        return {"detail": "Accepted"}
-
-    log.warning('arduino (irrigation) not responded the request')
-    return {"detail": "No response"}
-
-
-@app.get("/irrigation")
-async def get_irrigation():
-    return Controller.controllers_by_class_name['IrrigationController'].get_irrigation_status()
+    else:
+        log.warning('arduino (blinds) not responded the request')
+        return {"detail": "No response"}
 
 
 @app.post("/irrigation")
 async def post_irrigation(item: schemas.IrrigationRunSessionSchema):
-    Controller.controllers_by_class_name['IrrigationController'].set_irrigation_status(item)
-    await asyncio.sleep(2)
-    if Controller.controllers_by_class_name['IrrigationController'].get_irrigation_status().active == schemas.IrrigationState.nostate:
+    status = Controller.controllers_by_class_name['IrrigationController'].run_session(item)
+    if status is True:
         log.info('arduino accepted the request')
         return {"detail": "Accepted"}
-
-    log.warning('arduino (irrigation) not responded the request')
-    return {"detail": "No response"}
+    else:
+        log.warning('arduino (irrigation) not responded the request')
+        return {"detail": "No response"}
 
 @app.get("/open_weather")
 async def get_open_weather():

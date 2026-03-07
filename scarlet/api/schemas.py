@@ -9,13 +9,11 @@ log = log_.service.logger('schemas')
 class BlindState(Enum):
     up = 'up'
     down = 'down'
-    nostate = 'nostate'
 
 
 class IrrigationState(Enum):
     on = 'on'
     off = 'off'
-    nostate = 'nostate'
 
     @classmethod
     def _missing_(cls, value):
@@ -44,7 +42,7 @@ class IrrigationSessionSchema(BaseModel):
     zone1: int = 0
     zone2: int = 0
     zone3: int = 0
-    zone_connected: int = 0
+    zone_4: int = 0
 
 
 class IrrigationRunSessionSchema(IrrigationSessionSchema):
@@ -59,7 +57,7 @@ class IrrigationUpdateProgramSessionSchema(BaseModel):
     zone1: int | None = None
     zone2: int | None = None
     zone3: int | None = None
-    zone_connected: int | None
+    zone_4: int | None = None
 
     @field_validator("start_time", mode="before")
     def format_start_time(cls, value):

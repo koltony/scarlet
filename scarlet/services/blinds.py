@@ -1,8 +1,10 @@
 import datetime as dt
 from math import exp
+import uuid
 import schedule
+import json
 
-from scarlet.core import log as log_, config
+from scarlet.core import log as log_, config, mqtt_module
 import scarlet.services.open_weather as open_weather
 import scarlet.services.arduino_weather as arduino_weather
 from scarlet.api.schemas import BlindsPydanticSchema, BlindState
@@ -13,20 +15,14 @@ log = log_.service.logger('blinds')
 
 
 class BlindsController(config.Controller):
-    _blinds_status: BlindsPydanticSchema = BlindsPydanticSchema(left_blind=BlindState.nostate, right_blind=BlindState.nostate)
     _scheduled_jobs: list[schedule.Job] = list()
     temperature_limit: float
     light_limit: float
-    cloud_cover_limit: float
     automation: bool
 
-    @property
-    def blind_status(self):
-        return self._blinds_status
-
-    @blind_status.setter
-    def blind_status(self, program: BlindsPydanticSchema):
-        self._blinds_status = program
+    def initialize(self):
+        mqtt_module.register_subscription("home/blinds/ack", mqtt_module.on_ack)
+        log.debug("will subscribe to home/blinds/ack for blinds acknowledgements on connect")
 
     def schedule_jobs(self):
         log.debug("scheduling blinds related jobs")
@@ -48,48 +44,44 @@ class BlindsController(config.Controller):
             log.debug("returning True for open weather conditions")
             return True
 
-    @staticmethod
-    def _adjust_light_intensity(light_intensity: float, time_of: dt.datetime = dt.datetime.now()) -> float:
-        """"Light intensity during the day change a lot and in the late afternoon shading is still needed but the light intensity is much less"""
-        if not (open_weather.service.sunrise_time < time_of < open_weather.service.sunset_time):
-            log.debug("night time, no need for adjustment")
-            return 0
-
-        noon = open_weather.service.sunrise_time + (open_weather.service.sunset_time - open_weather.service.sunrise_time) * 0.5
-        center = 0
-        spread = 10
-        current_time_diff_to_center = min(abs(time_of.hour + time_of.minute / 60 - noon.hour + noon.minute / 60), 6)
-        return light_intensity / exp(-(current_time_diff_to_center - center) ** 2 / (2 * spread ** 2))
-
-    def check_arduino_weather_conditions(self) -> bool:
-        arduino_weather_data = arduino_weather.service.get_current_weather()
-        if not arduino_weather_data:
-            log.error("no average arduino weather data")
-            return False
-        adjusted_light = self._adjust_light_intensity(arduino_weather_data.light_1)
-        log.debug(f"light levels({arduino_weather_data.light_1} adj[{adjusted_light}] > {self.light_limit}")
-        if adjusted_light > self.light_limit:
-            log.debug("returning True for arduino weather conditions")
-            return True
-        log.debug("returning False for arduino weather conditions")
-        return False
-
     def decide_opening_and_closing(self):
         log.info("deciding on opening and closing blinds")
-        if self.check_open_weather_conditions() and self.check_arduino_weather_conditions():
-            log.info("blinds should be open")
-            self.blind_status = BlindsPydanticSchema(left_blind='down', right_blind='down')
-            db_service.add(BlindAction(is_user=False, is_left_up=False, is_right_up=False))
-        else:
-            log.info("blinds should be closed")
-            self.blind_status = BlindsPydanticSchema(left_blind='up', right_blind='up')
-            db_service.add(BlindAction(is_user=False, is_left_up=True, is_right_up=True))
+        if self.check_open_weather_conditions():
+            arduino_weather_data = arduino_weather.service.get_current_weather()
+            if arduino_weather_data:
+                if arduino_weather_data.wind < 35:
+                    # 1.06 is there to adjust the sensor differences, sqrt is added so the tails are uplifted
+                    light_1 = ((arduino_weather_data.light_1) * 1.06 / 4095) ** 0.5
+                    light_2 = ((arduino_weather_data.light_2) * 1.00 / 4095) ** 0.5
+                    log.debug("adjusted light levels: light_1: %s, light_2: %s, limit: %s", round(light_1, 2), round(light_2, 2), self.light_limit)
+                    self.set_blinds(BlindsPydanticSchema(left_blind='down' if light_1 > self.light_limit else 'up', right_blind='down' if light_2 > self.light_limit else 'up'), is_user=False)
+                    return
+                else:
+                    log.info(f"wind speed is too high: {arduino_weather_data.wind} km/h, keeping blinds closed")
+            else:
+                log.error("no current arduino weather data")
 
+        log.info("all blinds should be closed")
+        self.set_blinds(BlindsPydanticSchema(left_blind='up', right_blind='up'), is_user=False)
 
-    def set_blinds(self, item: BlindsPydanticSchema):
-        self.blind_status = item
-        db_service.add(BlindAction(is_user=True, is_left_up=True, is_right_up=True))
+    def set_blinds(self, item: BlindsPydanticSchema, is_user=False) -> bool:
+        log.info(f"setting blinds to {item}")
+        message_id = str(uuid.uuid4())
+        payload = item.model_dump(mode='json')
+        payload["message_id"] = message_id
+        mqtt_module.mqtt_client.publish("home/blinds", json.dumps(payload))
+        status = mqtt_module.await_ack(message_id)
+        db_service.add(BlindAction(
+            is_user=is_user,
+            blind_name='left_blind',
+            position=item.left_blind.value))
 
+        db_service.add(BlindAction(
+            is_user=is_user,
+            blind_name='right_blind',
+            position=item.right_blind.value))
+        log.info(f"blinds command acknowledged: {status}")
+        return status
 
     def set_automation(self, state: bool):
         self.automation = state

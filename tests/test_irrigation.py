@@ -36,7 +36,7 @@ def make_session(start_time=None):
     return models.IrrigationProgramSession(
         id=1,
         start_time=start_time or dt.datetime(2025, 1, 1, 6, 0).time(),
-        zone1=1, zone2=0, zone3=0, zone_connected=True
+        zone1=1, zone2=0, zone3=0, zone_4=True
     )
 
 

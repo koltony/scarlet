@@ -5,11 +5,13 @@ import os
 import asyncio
 import schedule
 import uvicorn
+import paho.mqtt.client as mqtt
 
-# sys.path.append(f"/{os.path.join(*__file__.split('/')[:-2])}")
+sys.path.append(f"/{os.path.join(*__file__.split('/')[:-2])}")
 
 import scarlet.core.log as log_
 import scarlet.core.config as config
+import scarlet.core.mqtt_module as mqtt_scarlet
 import scarlet.db.db
 import scarlet.api.routes as routes
 import scarlet.services.arduino_weather
@@ -37,16 +39,31 @@ def parse_arguments():
     return args
 
 
-@asynccontextmanager
-async def lifespan(app):
-    log_.service.change_logger('uvicorn', log_.LogLevels.info)
-    log_.service.change_logger('uvicorn.error', log_.LogLevels.info)
-    event_loop = asyncio.get_event_loop()
-    event_loop.create_task(run_schedule())
-    yield
+def on_connect(client, userdata, flags, rc):
+    log.info(f"Connected with result code: {rc}")
+
+def on_message(client, userdata, msg):
+    log.info(f"Received message on {msg.topic}: {msg.payload.decode()}")
+
+mqtt_client = mqtt_scarlet.setup_mqtt(on_connect=on_connect, on_message=on_message)
 
 
-routes.app.router.lifespan_context = lifespan
+def build_lifespan(mqtt_host: str):
+    @asynccontextmanager
+    async def lifespan(app):
+        log_.service.change_logger('uvicorn', log_.LogLevels.info)
+        log_.service.change_logger('uvicorn.error', log_.LogLevels.info)
+        event_loop = asyncio.get_event_loop()
+        event_loop.create_task(run_schedule())
+
+        mqtt_client.connect(mqtt_host, 1883, 60)
+        mqtt_client.loop_start()
+
+        yield
+
+        mqtt_client.loop_stop()
+        mqtt_client.disconnect()
+    return lifespan
 
 
 async def run_schedule():
@@ -60,6 +77,10 @@ async def run_schedule():
 if __name__ == '__main__':
     log = log_.service.logger('main')
     parser = parse_arguments()
+    routes.app.router.lifespan_context = build_lifespan(parser.host)
     log_.service.set_log_level(parser.log_level if parser.log_level else log_.LogLevels.debug)
     config.Process.run_process(config_path=parser.config)
+
+    routes.app.router.lifespan_context = build_lifespan(parser.host)
+
     uvicorn.run(routes.app, host=parser.host, port=parser.port, loop='uvloop')

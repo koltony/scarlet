@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (btn.classList.contains("edit-session")) {
         const cells = row.querySelectorAll("td");
-        const [startTime, zone1, zone2, zone3, zoneConnected] =
+        const [startTime, zone1, zone2, zone3, zone4] =
           Array.from(cells).map(td => td.textContent.trim());
 
         row.innerHTML = `
@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td><input type="number" name="zone1" value="${zone1 === "-" ? "" : zone1}"></td>
           <td><input type="number" name="zone2" value="${zone2 === "-" ? "" : zone2}"></td>
           <td><input type="number" name="zone3" value="${zone3 === "-" ? "" : zone3}"></td>
-          <td><input type="number" name="zone_connected" value="${zoneConnected === "-" ? "" : zoneConnected}"></td>
+          <td><input type="number" name="zone4" value="${zone4 === "-" ? "" : zone4}"></td>
           <td>
             <button class="save-session" data-id="${btn.dataset.id}" data-program-id="${btn.dataset.programId}"><i class="bi bi-floppy2-fill"></i></button>
             <button class="cancel-session" data-program-id="${btn.dataset.programId}"><i class="bi bi-x-lg"></i></button>
@@ -146,9 +146,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 <tr>
                   <th>Start Time</th>
                   <th>Zóna 1</th>
-                  <th>Zóne 2</th>
-                  <th>Zóne 3</th>
-                  <th>Zóna 1 2</th>
+                  <th>Zóna 2</th>
+                  <th>Zóna 3</th>
+                  <th>Zóna 4</th>
                   <th style="text-align:right;">
                     <button class="add-session" data-program-id="${program.id}">✚</button>
                   </th>
@@ -161,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td>${s.zone1 ?? "-"}</td>
                     <td>${s.zone2 ?? "-"}</td>
                     <td>${s.zone3 ?? "-"}</td>
-                    <td>${s.zone_connected ?? "-"}</td>
+                    <td>${s.zone4 ?? "-"}</td>
                     <td>
                       <button class="edit-session" data-id="${s.id}" data-program-id="${program.id}"><i class="bi bi-pencil-fill"></i></button>
                       <button class="delete-session" data-id="${s.id}" data-program-id="${program.id}"><i class="bi bi-trash3-fill"></i></button>
@@ -183,7 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td><input type="number" name="zone1" value="0"></td>
           <td><input type="number" name="zone2" value="0"></td>
           <td><input type="number" name="zone3" value="0"></td>
-          <td><input type="number" name="zone_connected" value="0"></td>
+          <td><input type="number" name="zone4" value="0"></td>
           <td>
             <button class="create-session" data-program-id="${program.id}"><i class="bi bi-floppy2-fill"></i></button>
             <button class="cancel-new-session"><i class="bi bi-x-lg"></i></button>
@@ -295,7 +295,7 @@ document.addEventListener("DOMContentLoaded", () => {
       zone1: parseInt(document.getElementById("zone1").value) || 0,
       zone2: parseInt(document.getElementById("zone2").value) || 0,
       zone3: parseInt(document.getElementById("zone3").value) || 0,
-      zone_connected: parseInt(document.getElementById("zone_connected").value) || 0,
+      zone_4: parseInt(document.getElementById("zone4").value) || 0,
       active: document.getElementById("is_active").checked ? "on" : "off"
     };
 

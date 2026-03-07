@@ -1,23 +1,28 @@
 import os
 import datetime as dt
+import uuid
+import json
 import schedule
 from sqlmodel import select, delete
 import polars as pl
 
-from scarlet.core import log as log_, config
+from scarlet.core import log as log_, config, mqtt_module
 from scarlet.services import open_weather, arduino_weather
 from scarlet.db.models import RanIrrigationSessionHistory, IrrigationProgram, IrrigationProgramSession
 from scarlet.db.db import service as db_service
-from scarlet.api.schemas import IrrigationSessionSchema, IrrigationRunSessionSchema, IrrigationState
+from scarlet.api.schemas import IrrigationRunSessionSchema, IrrigationState
 
 log = log_.service.logger('irrigation')
 
 
 class IrrigationController(config.Controller):
-    _irrigation_status: IrrigationRunSessionSchema = IrrigationRunSessionSchema(active=IrrigationState.nostate)
     _scheduled_sessions: list[IrrigationProgramSession] = list()
     _scheduled_jobs: list[schedule.Job] = list()
     automation: bool
+
+    def initialize(self):
+        mqtt_module.register_subscription("home/irrigation/ack", mqtt_module.on_ack)
+        log.debug("will subscribe to home/irrigation/ack for irrigation acknowledgements on connect")
 
     def schedule_jobs(self):
         log.debug("Scheduling Irrigation jobs")
@@ -73,10 +78,10 @@ class IrrigationController(config.Controller):
             log.info("rained before irrigation session, skipping scheduled run")
             return schedule.CancelJob
         if precipitation_prev24 and 10 < precipitation_prev24:
-            log.info(f"rained {precipitation_prev24}mm before irrigation session, skipping scheduled run")
+            log.info(f"rained {precipitation_prev24} mm before irrigation session, skipping scheduled run")
             return schedule.CancelJob
         log.info(f"started irrigation with {session}")
-        self._irrigation_status = IrrigationRunSessionSchema(zone1=session.zone1, zone2=session.zone2, zone3=session.zone3, zone_connected=session.zone_connected, active=IrrigationState.on)
+        self.run_session(IrrigationRunSessionSchema(zone1=session.zone1, zone2=session.zone2, zone3=session.zone3, zone_4=session.zone_4, active=IrrigationState.on))
         session_dict = session.model_dump()
         session_dict.pop('id')
         db_service.add(RanIrrigationSessionHistory.model_validate(session_dict))
@@ -85,14 +90,17 @@ class IrrigationController(config.Controller):
     def get_historical_sessions(self):
         return db_service.session.exec(select(RanIrrigationSessionHistory).where(RanIrrigationSessionHistory.timestamp > dt.datetime.now() - dt.timedelta(days=2))).all()
 
-    def set_irrigation_status(self, session: IrrigationRunSessionSchema):
-        log.info(f"updating irrigation status: {session}")
-        self._irrigation_status = session
+    def run_session(self, session: IrrigationRunSessionSchema) -> bool:
+        log.info(f"running session {session}")
+        message_id = str(uuid.uuid4())
+        payload = session.model_dump(mode='json')
+        payload["message_id"] = message_id
+        mqtt_module.mqtt_client.publish("home/irrigation", json.dumps(payload))
+        status = mqtt_module.await_ack(message_id)
+        log.info(f"irrigation command acknowledged: {status}")
         if session.active == 'on':
             db_service.add(RanIrrigationSessionHistory.model_validate(session.model_validate(session)))
-
-    def get_irrigation_status(self):
-        return self._irrigation_status
+        return status
 
     def set_irrigation_program(self, progam: IrrigationProgram):
         log.info(f"adding program {progam} to database")

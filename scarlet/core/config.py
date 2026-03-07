@@ -29,7 +29,7 @@ class Service:
 
     def init_config(self, config: dict[str, Any]):
         self.config = self.Config.model_validate(config if config is not None else {})
- 
+
     def initialize(self):
         pass
 
@@ -53,9 +53,13 @@ class Controller(BaseModel):
             log.debug(f"configuring {key} controller")
             if cls.controller_class_by_class_name.get(key):
                 cls.controllers_by_class_name[key] = cls.controller_class_by_class_name[key].model_validate(value if value is not None else {})
+                cls.controllers_by_class_name[key].initialize()
                 cls.controllers_by_class_name[key].schedule_jobs()
             else:
                 raise KeyError(f"controller {key} does not exists, available: {cls.controller_class_by_class_name.keys()}")
+
+    def initialize(self):
+        pass
 
     def schedule_jobs(self):
         pass

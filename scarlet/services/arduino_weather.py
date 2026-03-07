@@ -2,8 +2,9 @@ import statistics
 import datetime as dt
 import schedule
 from sqlmodel import select
+import json
 
-from scarlet.core import log as log_, config
+from scarlet.core import log as log_, config, mqtt_module
 from scarlet.db.models import ArduinoWeatherData
 from scarlet.db.db import service as db_service
 
@@ -24,6 +25,11 @@ class ArduinoWeather(config.Service):
 
     config: 'ArduinoWeather.Config'
     _weather: list[ArduinoWeatherData] = list()
+
+    def initialize(self):
+        mqtt_module.register_subscription("home/weather", self.append_weather_data)
+        log.debug("will subscribe to home/weather for weather data from arduino")
+
     def schedule_jobs(self):
         schedule.every(self.config.save_frequency).minutes.do(self.save_weather_data)
 
@@ -35,19 +41,20 @@ class ArduinoWeather(config.Service):
         delta_voltage = self.config.anemometer_milli_volt_out_max - self.config.anemometer_milli_volt_out_min
         meter_per_sec_per_voltage = delta_voltage / self.config.anemometer_max_meter_per_sec  # mps/mV
         value_voltage = value * milli_volt_per_value
-        log.debug(f"wind sensor voltage: {value_voltage} mV")
+        log.debug("wind sensor voltage: %s mV", value_voltage)
         if value_voltage < self.config.anemometer_milli_volt_out_min:
-            log.debug(f"voltage: {value_voltage} is under threshold: {self.config.anemometer_milli_volt_out_min} returning 0")
+            log.debug("voltage: %s is under threshold: %s returning 0", value_voltage, self.config.anemometer_milli_volt_out_min)
             return 0.0
 
         meter_per_sec = (value_voltage - self.config.anemometer_milli_volt_out_min) / meter_per_sec_per_voltage
-        km_per_hour = round(meter_per_sec * 3.6, 1)
-        log.debug(f"calculated wind speed: {km_per_hour} km/h")
+        km_per_hour = round(meter_per_sec * 3.6, 1) * 6 # compared with official wind data, we are getting a much lower value
+        log.debug("calculated wind speed: %s km/h", km_per_hour)
         return km_per_hour
 
-
-    def append_weather_data(self, weather: ArduinoWeatherData) -> None:
-        log.debug(f"got weather data from arduino : {weather}")
+    def append_weather_data(self, client, userdata, msg):
+        data = json.loads(msg.payload.decode())
+        weather = ArduinoWeatherData(**data)
+        log.debug("got weather data from arduino : %s", weather)
         weather.raw_wind = weather.wind
         weather.wind = self._value_to_wind_speed(weather.wind)
         self._weather.append(weather)

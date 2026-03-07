@@ -39,7 +39,7 @@ class IrrigationSessionBase(SQLModel, table=False):
     zone1: int = 0
     zone2: int = 0
     zone3: int = 0
-    zone_connected: int = 0
+    zone_4: int = 0
 
 
 class RanIrrigationSessionHistory(IrrigationSessionBase, table=True):
@@ -66,5 +66,5 @@ class BlindAction(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
     is_user: bool
-    is_left_up: bool
-    is_right_up: bool
+    blind_name: str
+    position: str
