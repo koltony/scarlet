@@ -398,6 +398,136 @@ button:hover {
   opacity: 1;
 }
 
+/* iOS-like navbar / segmented control */
+.app-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 12px 16px;
+  backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(250,250,250,0.5));
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.navbar-inner { max-width: 1100px; margin: 0 auto; }
+.segmented { display:flex; gap:8px; justify-content:flex-start; align-items:center; }
+.seg-item {
+  display:flex; gap:8px; align-items:center; padding:8px 12px; border-radius: 12px; text-decoration:none; color:#333; font-weight:600;
+  background: rgba(255,255,255,0.4); border: 1px solid rgba(0,0,0,0.04);
+  transition: background 0.12s ease, transform 0.08s ease; font-size:0.95rem;
+}
+.seg-item i { font-size:1.1rem; color:#2e7d32; }
+.seg-item:hover { background: rgba(255,255,255,0.7); transform: translateY(-2px); }
+.seg-item.active { background: linear-gradient(180deg, rgba(76,175,80,0.12), rgba(76,175,80,0.06)); color:#14471f; }
+
+/* Page card wrapper (iOS-like) */
+.page-content { max-width: 1100px; margin: 18px auto; padding: 0 12px; }
+.ios-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(248,248,248,0.75));
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+  backdrop-filter: blur(6px);
+}
+
+/* Ensure existing blinds-control & table-style get some inner spacing when wrapped */
+.ios-card .blinds-control, .ios-card .automation-container, .ios-card .table-style { background: transparent; box-shadow: none; border-radius: 8px; }
+
+
+/* Rooms grid styles */
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+
+/* Apple Home-like tile styling, keeping current color scheme */
+.room-tile {
+  background: linear-gradient(180deg, rgba(255,255,255,0.60), rgba(250,250,250,0.45));
+  border: 1px solid rgba(60,60,60,0.06);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 110px;
+  transition: transform 0.18s cubic-bezier(.2,.8,.2,1), box-shadow 0.18s ease, grid-column 0.18s ease;
+  backdrop-filter: blur(6px);
+  aspect-ratio: 1 / 1; /* keep tiles square */
+  overflow: hidden;
+  position: relative;
+}
+.room-tile:hover { transform: translateY(-6px); box-shadow: 0 14px 28px rgba(0,0,0,0.12); }
+
+.room-tile .room-top { display:flex; align-items:center; gap:12px; }
+.room-icon {
+  width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  background: linear-gradient(180deg, rgba(76,175,80,0.12), rgba(76,175,80,0.06));
+  border: 1px solid rgba(76,175,80,0.12);
+  color: #2e7d32; font-size:1.2rem;
+}
+.room-body { display:flex; align-items:baseline; justify-content:space-between; margin-top:8px; }
+.room-title { font-weight:700; font-size:0.98rem; color:#222; }
+.room-temp { font-weight:700; font-size:1.6rem; color:#222; }
+.room-hum { font-size:0.85rem; color:#666; margin-left:8px; }
+
+.room-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
+.room-actions button { background:transparent; border:none; cursor:pointer; font-size:1.05rem; color:#666; }
+
+.room-tile.expanded { grid-column: 1 / -1; aspect-ratio: auto; min-height: 280px; }
+.room-details { margin-top:14px; padding-top:12px; border-top:1px solid rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:12px; }
+
+/* Devices rendered as tiles inside expanded room */
+.device-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.device-tile {
+  background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(250,250,250,0.5));
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+  display:flex; flex-direction:column; justify-content:space-between; gap:6px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  cursor: pointer;
+}
+.device-tile:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
+.device-tile .device-name { font-weight:600; color:#222; }
+.device-tile .device-type { font-size:0.85rem; color:#666; }
+.device-tile .device-meta { font-size:0.85rem; color:#555; }
+.device-tile .device-expanded { display:none; margin-top:6px; font-size:0.85rem; color:#444; }
+.device-tile.expanded .device-expanded { display:block; }
+
+/* Create tile styling */
+.create-tile { display:flex; align-items:center; justify-content:center; cursor:pointer; color: #2e7d32; }
+.create-tile:hover { background: linear-gradient(180deg, rgba(250,250,250,0.9), rgba(245,245,245,0.8)); transform: translateY(-4px); }
+
+/* iOS-like buttons */
+.ios-btn { padding:8px 12px; border-radius: 12px; border: none; cursor: pointer; font-weight:700; display:inline-flex; gap:8px; align-items:center; }
+.ios-btn.primary { background: linear-gradient(180deg, #4CAF50, #2e7d32); color: white; box-shadow: 0 6px 12px rgba(46,125,50,0.18); }
+.ios-btn.ghost { background: transparent; border: 1px solid rgba(0,0,0,0.06); color: #333; }
+.ios-btn.icon-only { padding:8px; border-radius:10px; }
+
+
+.devices-list .device-item { padding:10px; border-radius:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.6); border:1px solid rgba(0,0,0,0.03); }
+.device-meta { color:#555; font-size:0.9rem; }
+
+/* Schedule items */
+.schedule-item { padding:8px 10px; border-radius:8px; background: rgba(250,250,250,0.6); border:1px solid rgba(0,0,0,0.03); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+
+/* Compact mobile tweaks to preserve 2-3 tiles per row */
+@media (max-width: 480px) {
+  .rooms-grid { grid-template-columns: repeat(2, 1fr); }
+  .room-temp { font-size: 1.3rem; }
+}
+
+
+/* Responsive: aim for 2-3 tiles per row on phones */
+@media (max-width: 480px) {
+  .rooms-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+
 .fade-out {
   animation: fadeOut 2s ease-out forwards;
   animation-delay: 3s; /* Wait 3s before fading */

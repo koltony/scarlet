@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+  <h2>Rooms</h2>
+</div>
+
+<div id="rooms-container" style="margin-top:16px;"></div>
+
+<!-- Template for expanded room details -->
+<template id="room-details-tpl">
+  <div class="room-details">
+    <h4>Devices</h4>
+    <div class="devices-list"></div>
+    <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+      <select class="add-device-type">
+        <option value="sonoff-sensor">Sonoff Temp/Humidity Sensor</option>
+        <option value="sonoff-valve">Sonoff Valve</option>
+      </select>
+      <input class="add-device-name" placeholder="Device name" style="padding:6px;border-radius:6px;border:1px solid #ccc;">
+      <button class="add-device-btn">Add device</button>
+    </div>
+
+    <h4 style="margin-top:12px;">Temperature schedule</h4>
+    <div class="schedule-list"></div>
+    <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+      <input class="schedule-time" type="time">
+      <input class="schedule-temp" type="number" step="0.5" placeholder="Temp °C" style="width:90px;">
+      <button class="add-schedule-btn">Add</button>
+    </div>
+  </div>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/rooms.js') }}"></script>
+{% endblock %}

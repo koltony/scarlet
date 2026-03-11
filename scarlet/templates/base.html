@@ -5,11 +5,14 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-<header class="navbar">
-    <ul class="navbar-style">
-        <li><a href="/irrigation/ui"><i class="bi bi-droplet"></i> Öntözőrendszer</a></li>
-        <li><a href="/blinds/ui"><i class="bi bi-window"></i> Redőny</a></li>
-    </ul>
+<header class="app-navbar">
+    <div class="navbar-inner">
+        <nav class="segmented" role="navigation" aria-label="Main navigation">
+            <a href="/irrigation/ui" class="seg-item"><i class="bi bi-droplet"></i><span>Öntözőrendszer</span></a>
+            <a href="/blinds/ui" class="seg-item"><i class="bi bi-window"></i><span>Redőny</span></a>
+            <!-- <a href="/rooms/ui" class="seg-item"><i class="bi bi-house"></i><span>Lakás</span></a> -->
+        </nav>
+    </div>
 </header>
     <main>
         {% block content %}{% endblock %}

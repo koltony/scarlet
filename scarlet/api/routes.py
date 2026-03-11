@@ -36,6 +36,86 @@ def blinds_page(request: Request):
     return templates.TemplateResponse("blinds.html", {"request": request})
 
 
+# Simple in-memory rooms store for frontend development / dummy data
+_next_room_id = 3
+ROOMS = [
+    {"id": 1, "name": "Living Room", "temperature": 21.4, "humidity": 44, "devices": [
+        {"id": 1, "type": "sonoff-sensor", "name": "LR Sensor", "temperature": 21.4, "humidity": 44, "battery": 97},
+        {"id": 2, "type": "sonoff-valve", "name": "LR Valve", "battery": 98}
+    ], "schedule": [{"time": "06:30", "temp": 20}, {"time": "22:00", "temp": 16}]},
+    {"id": 2, "name": "Bedroom", "temperature": 19.1, "humidity": 48, "devices": [], "schedule": []}
+]
+
+
+@app.get("/rooms/ui", response_class=HTMLResponse)
+def rooms_page(request: Request):
+    return templates.TemplateResponse("rooms.html", {"request": request})
+
+
+@app.get("/api/rooms")
+def api_get_rooms():
+    # Return summary list
+    return [{"id": r["id"], "name": r["name"], "temperature": r.get("temperature"), "humidity": r.get("humidity")} for r in ROOMS]
+
+
+@app.post("/api/rooms")
+async def api_create_room(item: dict):
+    global _next_room_id
+    name = item.get('name', 'New Room')
+    room = {"id": _next_room_id, "name": name, "temperature": None, "humidity": None, "devices": [], "schedule": []}
+    _next_room_id += 1
+    ROOMS.append(room)
+    return room
+
+
+@app.post("/api/rooms/{room_id}/delete")
+async def api_delete_room(room_id: int):
+    global ROOMS
+    ROOMS = [r for r in ROOMS if r['id'] != room_id]
+    return {"detail": "deleted"}
+
+
+@app.get("/api/rooms/{room_id}")
+def api_get_room(room_id: int):
+    room = next((r for r in ROOMS if r['id'] == room_id), None)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    return room
+
+
+@app.post("/api/rooms/{room_id}/devices")
+async def api_add_device(room_id: int, item: dict):
+    room = next((r for r in ROOMS if r['id'] == room_id), None)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    dev_id = 1
+    if room['devices']:
+        dev_id = max(d['id'] for d in room['devices']) + 1
+    dev = {"id": dev_id, "type": item.get('type'), "name": item.get('name', item.get('type')), "temperature": item.get('temperature'), "humidity": item.get('humidity'), "battery": item.get('battery')}
+    room['devices'].append(dev)
+    return dev
+
+
+@app.post("/api/rooms/{room_id}/devices/{device_id}/delete")
+async def api_remove_device(room_id: int, device_id: int):
+    room = next((r for r in ROOMS if r['id'] == room_id), None)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    room['devices'] = [d for d in room['devices'] if d['id'] != device_id]
+    return {"detail": "deleted"}
+
+
+@app.post("/api/rooms/{room_id}/schedule")
+async def api_add_schedule(room_id: int, item: dict):
+    room = next((r for r in ROOMS if r['id'] == room_id), None)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    entry = {"time": item.get('time'), "temp": item.get('temp')}
+    room['schedule'].append(entry)
+    return entry
+
+
+
 @app.get("/weather")
 async def get_weather():
     return arduino_service.get_current_weather()
